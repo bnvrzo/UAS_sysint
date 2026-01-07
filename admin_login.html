@@ -261,7 +261,8 @@
             })
             .then(r => r.json())
             .then(data => {
-                if (data.authenticated && data.role === 'admin') {
+                // backend returns { loggedIn, isAdmin, user }
+                if (data.loggedIn && data.isAdmin) {
                     window.location.href = 'admin/';
                 }
             })

@@ -522,84 +522,22 @@
         </div>
     </div>
 
-    <!-- Login Modal -->
-    <div class="modal fade" id="adminLoginModal" tabindex="-1" aria-hidden="true">
-        <div class="modal-dialog modal-dialog-centered">
-            <div class="modal-content">
-                <div class="modal-header">
-                    <h5 class="modal-title">Admin Login</h5>
-                </div>
-                <div class="modal-body">
-                    <form id="adminLoginForm">
-                        <div class="mb-3">
-                            <label class="form-label">Username</label>
-                            <input type="text" id="loginUsername" class="form-control">
-                        </div>
-                        <div class="mb-3">
-                            <label class="form-label">Password</label>
-                            <input type="password" id="loginPassword" class="form-control">
-                        </div>
-                    </form>
-                </div>
-                <div class="modal-footer">
-                    <button type="button" class="btn btn-secondary" onclick="location.href='../Index.html'">Back</button>
-                    <button type="button" class="btn btn-primary" onclick="adminLogin()">Login</button>
-                </div>
-            </div>
-        </div>
-    </div>
-
     <!-- Scripts -->
     <script src="../assets/bootstrap/js/bootstrap.bundle.min.js"></script>
     <script>
         // Initialize admin panel
         const API_URL = '../backend/routes';
 
-        async function checkAuth() {
-            try {
-                const res = await fetch(`${API_URL}/auth.php?action=status`);
-                return await res.json();
-            } catch (e) {
-                return { loggedIn: false };
-            }
-        }
-
-        function showLoginModal() {
-            const modalEl = document.getElementById('adminLoginModal');
-            const modal = new bootstrap.Modal(modalEl, {backdrop: 'static', keyboard: false});
-            modal.show();
-        }
-
-        async function adminLogin() {
-            const username = document.getElementById('loginUsername').value;
-            const password = document.getElementById('loginPassword').value;
-            try {
-                const res = await fetch(`${API_URL}/auth.php?action=login`, {
-                    method: 'POST',
-                    headers: {'Content-Type': 'application/json'},
-                    body: JSON.stringify({username, password})
-                });
-                const json = await res.json();
-                if (json.success) {
-                    bootstrap.Modal.getInstance(document.getElementById('adminLoginModal')).hide();
-                    loadInitialData();
-                } else {
-                    alert('Login failed: ' + (json.error || 'Unknown error'));
-                }
-            } catch (e) {
-                alert('Login error');
-            }
-        }
-
         async function adminLogout() {
             try {
                 const res = await fetch(`${API_URL}/auth.php?action=logout`, {
                     method: 'POST',
+                    credentials: 'include',
                     headers: {'Content-Type': 'application/json'}
                 });
                 const json = await res.json();
                 if (json.success) {
-                    showLoginModal();
+                    window.location.href = '../admin_login.html';
                 } else {
                     alert('Logout failed');
                 }
@@ -615,15 +553,7 @@
             loadCoverage();
         }
 
-        // Load initial data with auth check
-        document.addEventListener('DOMContentLoaded', async function() {
-            const status = await checkAuth();
-            if (status.loggedIn && status.isAdmin) {
-                loadInitialData();
-            } else {
-                showLoginModal();
-            }
-        });
+        // NOTE: initial auth gating is handled by the load-event auth check below
 
         // NEWS FUNCTIONS
         function loadNews() {
@@ -653,7 +583,37 @@
                         html = '<tr><td colspan="5" class="text-center text-muted">No news yet</td></tr>';
                     }
                     document.getElementById('newsTable').innerHTML = html;
+                })
+                .catch(err => {
+                    document.getElementById('newsTable').innerHTML = '<tr><td colspan="5" class="text-center text-danger">Error loading data</td></tr>';
                 });
+        }
+
+        function editCoverage(id) {
+            fetch(`${API_URL}/bts_coverage.php`, {credentials: 'include'})
+                .then(r => r.json())
+                .then(data => {
+                    if (data.data && Array.isArray(data.data)) {
+                        const item = data.data.find(i => i.id == id);
+                        if (item) {
+                            document.getElementById('coverageId').value = item.id;
+                            document.getElementById('coverageIsland').value = item.island_name;
+                            document.getElementById('coverageBTS').value = item.bts_count;
+                            document.getElementById('coveragePop').value = item.population;
+                            document.getElementById('coveragePercent').value = item.coverage_percentage;
+                            document.getElementById('coverageLat').value = item.latitude;
+                            document.getElementById('coverageLng').value = item.longitude;
+                            
+                            document.querySelector('#coverageModal .modal-title').textContent = 'Edit Coverage Area';
+                            
+                            const modalEl = document.getElementById('coverageModal');
+                            let modal = bootstrap.Modal.getInstance(modalEl);
+                            if (!modal) modal = new bootstrap.Modal(modalEl);
+                            modal.show();
+                        }
+                    }
+                })
+                .catch(err => console.error('Error loading coverage for edit:', err));
         }
 
         function saveNews() {
@@ -757,38 +717,55 @@
 
         // GROWTH FUNCTIONS
         function loadGrowth() {
-            fetch(`${API_URL}/customer_growth.php`)
-                .then(r => r.json())
+            fetch(`${API_URL}/customer_growth.php`, {credentials: 'include'})
+                .then(r => {
+                    if (!r.ok) throw new Error(`HTTP ${r.status} ${r.statusText}`);
+                    return r.json();
+                })
                 .then(data => {
+                    console.log('Growth Data:', data); // Debugging
                     let html = '';
-                    if (data.data && data.data.length > 0) {
+                    if (data.data && Array.isArray(data.data) && data.data.length > 0) {
                         data.data.forEach(item => {
                             html += `
                                 <tr>
                                     <td>${item.year}</td>
-                                    <td>${item.total_customers.toLocaleString()}</td>
-                                    <td>${item.growth_percentage ? item.growth_percentage.toFixed(2) + '%' : '-'}</td>
+                                    <td>${Number(item.total_customers).toLocaleString()}</td>
+                                    <td>${item.growth_percentage ? Number(item.growth_percentage).toFixed(2) + '%' : '-'}</td>
                                     <td>
                                         <button class="btn btn-sm btn-danger" onclick="deleteGrowthData(${item.year})">Delete</button>
                                     </td>
                                 </tr>
                             `;
                         });
+                    } else if (data.data && !Array.isArray(data.data)) {
+                        console.error('Growth data invalid format:', data);
+                        throw new Error('Data format invalid (not an array)');
+                    } else {
+                        html = '<tr><td colspan="4" class="text-center text-muted">No data available</td></tr>';
                     }
                     document.getElementById('growthTable').innerHTML = html;
+                })
+                .catch(err => {
+                    console.error('Growth load error:', err);
+                    document.getElementById('growthTable').innerHTML = `<tr><td colspan="4" class="text-center text-danger">Error: ${err.message}</td></tr>`;
                 });
 
-            fetch(`${API_URL}/customer_growth.php?type=analysis`)
+            fetch(`${API_URL}/customer_growth.php?type=analysis`, {credentials: 'include'})
                 .then(r => r.json())
                 .then(data => {
                     if (data.data) {
                         document.getElementById('growthSummary').innerHTML = `
                             <p><strong>Period:</strong> ${data.data.period_start} - ${data.data.period_end}</p>
-                            <p><strong>Total Growth:</strong> ${data.data.total_growth_percentage.toFixed(2)}%</p>
-                            <p><strong>Avg Annual:</strong> ${data.data.average_annual_growth.toFixed(2)}%</p>
-                            <p><strong>Increase:</strong> ${data.data.customer_increase.toLocaleString()} customers</p>
+                            <p><strong>Total Growth:</strong> ${Number(data.data.total_growth_percentage).toFixed(2)}%</p>
+                            <p><strong>Avg Annual:</strong> ${Number(data.data.average_annual_growth).toFixed(2)}%</p>
+                            <p><strong>Increase:</strong> ${Number(data.data.customer_increase).toLocaleString()} customers</p>
                         `;
                     }
+                })
+                .catch(err => {
+                    console.error('Growth summary error:', err);
+                    document.getElementById('growthSummary').innerHTML = `<span class="text-danger">Error: ${err.message}</span>`;
                 });
         }
 
@@ -801,6 +778,7 @@
 
             fetch(`${API_URL}/customer_growth.php`, {
                 method: 'POST',
+                credentials: 'include',
                 headers: {'Content-Type': 'application/json'},
                 body: JSON.stringify(data)
             })
@@ -821,6 +799,7 @@
             if (confirm('Delete data for ' + year + '?')) {
                 fetch(`${API_URL}/customer_growth.php`, {
                     method: 'DELETE',
+                    credentials: 'include',
                     headers: {'Content-Type': 'application/json'},
                     body: JSON.stringify({ year: year })
                 })
@@ -835,18 +814,22 @@
 
         // COVERAGE FUNCTIONS
         function loadCoverage() {
-            fetch(`${API_URL}/bts_coverage.php`)
-                .then(r => r.json())
+            fetch(`${API_URL}/bts_coverage.php`, {credentials: 'include'})
+                .then(r => {
+                    if (!r.ok) throw new Error(`HTTP ${r.status} ${r.statusText}`);
+                    return r.json();
+                })
                 .then(data => {
+                    console.log('Coverage Data:', data); // Debugging
                     let html = '';
-                    if (data.data && data.data.length > 0) {
+                    if (data.data && Array.isArray(data.data) && data.data.length > 0) {
                         data.data.forEach(item => {
                             html += `
                                 <tr>
                                     <td>${item.island_name}</td>
-                                    <td>${item.bts_count}</td>
-                                    <td>${item.population ? item.population.toLocaleString() : '-'}</td>
-                                    <td>${item.coverage_percentage ? item.coverage_percentage.toFixed(2) + '%' : '-'}</td>
+                                    <td>${Number(item.bts_count).toLocaleString()}</td>
+                                    <td>${item.population ? Number(item.population).toLocaleString() : '-'}</td>
+                                    <td>${item.coverage_percentage ? Number(item.coverage_percentage).toFixed(2) + '%' : '-'}</td>
                                     <td>
                                         <button class="btn btn-sm btn-warning" onclick="editCoverage(${item.id})">Edit</button>
                                         <button class="btn btn-sm btn-danger" onclick="deleteCoverage(${item.id})">Delete</button>
@@ -854,20 +837,30 @@
                                 </tr>
                             `;
                         });
+                    } else if (data.data && !Array.isArray(data.data)) {
+                        console.error('Coverage data invalid format:', data);
+                        throw new Error('Data format invalid (not an array)');
+                    } else {
+                        html = '<tr><td colspan="5" class="text-center text-muted">No coverage data available</td></tr>';
                     }
                     document.getElementById('coverageTable').innerHTML = html;
+                })
+                .catch(err => {
+                    console.error('Coverage load error:', err);
+                    document.getElementById('coverageTable').innerHTML = `<tr><td colspan="5" class="text-center text-danger">Error: ${err.message}</td></tr>`;
                 });
 
-            fetch(`${API_URL}/bts_coverage.php?type=stats`)
+            fetch(`${API_URL}/bts_coverage.php?type=stats`, {credentials: 'include'})
                 .then(r => r.json())
                 .then(data => {
                     if (data.data) {
                         document.getElementById('totalIslands').textContent = data.data.total_islands;
                         document.getElementById('totalBTS').textContent = data.data.total_bts;
-                        document.getElementById('avgBTS').textContent = data.data.avg_bts_per_island.toFixed(0);
-                        document.getElementById('avgCoverage').textContent = data.data.avg_coverage.toFixed(2) + '%';
+                        document.getElementById('avgBTS').textContent = Number(data.data.avg_bts_per_island).toFixed(0);
+                        document.getElementById('avgCoverage').textContent = Number(data.data.avg_coverage).toFixed(2) + '%';
                     }
-                });
+                })
+                .catch(err => console.error('Stats error:', err));
         }
 
         function saveCoverage() {
@@ -886,6 +879,7 @@
             const method = id ? 'PUT' : 'POST';
             fetch(`${API_URL}/bts_coverage.php`, {
                 method: method,
+                credentials: 'include',
                 headers: {'Content-Type': 'application/json'},
                 body: JSON.stringify(data)
             })
@@ -907,6 +901,7 @@
             if (confirm('Are you sure?')) {
                 fetch(`${API_URL}/bts_coverage.php`, {
                     method: 'DELETE',
+                    credentials: 'include',
                     headers: {'Content-Type': 'application/json'},
                     body: JSON.stringify({ id: id })
                 })
@@ -938,9 +933,12 @@
             document.getElementById('growthForm').reset();
         });
 
-        document.getElementById('coverageModal')?.addEventListener('show.bs.modal', function() {
-            document.getElementById('coverageForm').reset();
-            document.getElementById('coverageId').value = '';
+        document.getElementById('coverageModal')?.addEventListener('show.bs.modal', function(event) {
+            if (event.relatedTarget) {
+                document.getElementById('coverageForm').reset();
+                document.getElementById('coverageId').value = '';
+                document.querySelector('#coverageModal .modal-title').textContent = 'Add Coverage Area';
+            }
         });
     </script>
     </div><!-- End adminContent -->
@@ -972,11 +970,12 @@
             .then(data => {
                 resolved = true;
                 clearTimeout(revealTimeout);
-                if (data.authenticated && data.role === 'admin') {
+                if (data.loggedIn && data.isAdmin) {
                     // authenticated — ensure UI visible and remove banner
                     overlay.style.display = 'none';
                     content.style.display = 'block';
                     pendingBanner.style.display = 'none';
+                    loadInitialData();
                 } else {
                     // not authenticated — redirect immediately
                     window.location.href = '../admin_login.html';
