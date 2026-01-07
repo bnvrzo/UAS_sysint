@@ -22,7 +22,25 @@
   <noscript><link rel="stylesheet" href="https://fonts.googleapis.com/css?family=Inter+Tight:100,200,300,400,500,600,700,800,900,100i,200i,300i,400i,500i,600i,700i,800i,900i&display=swap"></noscript>
   <link rel="preload" as="style" href="assets/mobirise/css/mbr-additional.css"><link rel="stylesheet" href="assets/mobirise/css/mbr-additional.css" type="text/css">
   <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
-  <script src="https://maps.googleapis.com/maps/api/js?key=AIzaSyAu5t6tHhLNrKHDaTVJFBfvT5OgyX7vZQs"></script>
+  <!-- IMPORTANT: Replace the API key below with your valid Google Maps API key. -->
+  <script async defer src="https://maps.googleapis.com/maps/api/js?key=AIzaSyAu5t6tHhLNrKHDaTVJFBfvT5OgyX7vZQs&callback=initMap"></script>
+  <script>
+    // Bridge function: Google Maps will call initMap when the API is ready.
+    // This safely defers to our `loadCoverageMap()` implementation whether
+    // it's already defined or will be defined later in the page.
+    function initMap() {
+      if (typeof loadCoverageMap === 'function') {
+        loadCoverageMap();
+      } else {
+        document.addEventListener('DOMContentLoaded', function() {
+          if (typeof loadCoverageMap === 'function') loadCoverageMap();
+        });
+      }
+    }
+  </script>
+  <!-- Leaflet (fallback if Google Maps API fails or no key) -->
+  <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" crossorigin=""/>
+  <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js" crossorigin=""></script>
   <style>
     .growth-section {
       background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
@@ -189,6 +207,18 @@
       border-radius: 4px;
       transition: width 0.3s ease;
     }
+      .coverage-perc-tooltip {
+        background: transparent !important;
+        color: #fff !important;
+        font-weight: 700 !important;
+        text-shadow: 0 1px 2px rgba(0,0,0,0.6) !important;
+        padding: 0 !important;
+        border: none !important;
+      }
+    /* Hide Google Maps error overlay if API key is invalid */
+    #coverageMap .gm-err-container,
+    #coverageMap .gm-err-content,
+    #coverageMap .gm-err-icon { display: none !important; }
   </style>
 
   
@@ -415,7 +445,8 @@
 // Initialize charts and maps on page load
 document.addEventListener('DOMContentLoaded', function() {
   loadGrowthChart();
-  loadCoverageMap();
+  // `loadCoverageMap()` will be invoked by the Google Maps API callback `initMap()`
+  // when the Maps script finishes loading. See top of file for the initMap bridge.
 });
 
 // Load Customer Growth Chart
@@ -542,88 +573,276 @@ let map;
 let markers = [];
 
 function loadCoverageMap() {
-  // Initialize Google Map
-  map = new google.maps.Map(document.getElementById('coverageMap'), {
-    zoom: 5,
-    center: { lat: -2, lng: 113 },
-    styles: [
-      {
-        "elementType": "geometry",
-        "stylers": [{"color": "#f5f5f5"}]
-      },
-      {
-        "elementType": "labels.icon",
-        "stylers": [{"visibility": "off"}]
-      },
-      {
-        "elementType": "labels.text.fill",
-        "stylers": [{"color": "#616161"}]
-      },
-      {
-        "featureType": "water",
-        "elementType": "geometry",
-        "stylers": [{"color": "#c9c9c9"}]
-      }
-    ]
-  });
+  // Remove any existing Google Maps error overlay before rendering
+  const gmErrExisting = document.getElementById('coverageMap')?.querySelector('.gm-err-container');
+  if (gmErrExisting) gmErrExisting.remove();
 
-  // Fetch coverage data
+  // Fetch coverage data first, then initialize appropriate map renderer
   fetch('backend/routes/bts_coverage.php?type=map')
     .then(r => r.json())
     .then(data => {
       if (data.success && data.data) {
         const mapData = data.data;
         let islandHTML = '';
-        
-        mapData.forEach(island => {
-          // Add marker
-          const marker = new google.maps.Marker({
-            position: { lat: island.lat, lng: island.lng },
-            map: map,
-            title: island.name,
-            icon: {
-              path: google.maps.SymbolPath.CIRCLE,
-              scale: Math.log(island.bts_count) * 2,
+
+        // Leaflet-first renderer: if Leaflet is available, use it immediately
+        function renderLeaflet(mapData) {
+          const mapContainer = document.getElementById('coverageMap');
+          const gmErr = mapContainer.querySelector('.gm-err-container');
+          if (gmErr) gmErr.remove();
+          mapContainer.innerHTML = '';
+
+          const leafletMap = L.map('coverageMap', { preferCanvas: true }).setView([-2, 113], 5);
+          L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+            maxZoom: 18,
+            attribution: '&copy; OpenStreetMap contributors'
+          }).addTo(leafletMap);
+
+          mapData.forEach(island => {
+            const radius = Math.max(4000, Math.sqrt(Number(island.bts_count) || 1) * 12000);
+            const circle = L.circle([island.lat, island.lng], {
+              color: '#764ba2',
               fillColor: '#667eea',
-              fillOpacity: 0.6,
-              strokeColor: '#764ba2',
-              strokeWeight: 2
-            }
-          });
+              fillOpacity: 0.5,
+              radius: radius
+            }).addTo(leafletMap);
 
-          // Add info window
-          const infoWindow = new google.maps.InfoWindow({
-            content: `<div style="padding: 10px; font-family: Arial;">
-              <h5 style="margin: 0 0 10px; color: #667eea;">${island.name}</h5>
-              <p style="margin: 5px 0;"><strong>BTS:</strong> ${island.bts_count}</p>
-              <p style="margin: 5px 0;"><strong>Population:</strong> ${island.population ? island.population.toLocaleString() : 'N/A'}</p>
-              <p style="margin: 5px 0;"><strong>Coverage:</strong> ${island.coverage.toFixed(2)}%</p>
-            </div>`
-          });
+            const popup = `<div style="padding:10px;font-family:Arial;">
+              <h5 style="margin:0 0 8px;color:#667eea;">${island.name}</h5>
+              <p style="margin:4px 0;"><strong>BTS:</strong> ${island.bts_count}</p>
+              <p style="margin:4px 0;"><strong>Population:</strong> ${island.population ? Number(island.population).toLocaleString() : 'N/A'}</p>
+              <p style="margin:4px 0;"><strong>Coverage:</strong> ${Number(island.coverage).toFixed(2)}%</p>
+            </div>`;
 
-          marker.addListener('click', () => {
-            infoWindow.open(map, marker);
-          });
+            circle.bindPopup(popup);
 
-          markers.push(marker);
+            // show coverage percent inside the circle (Leaflet)
+            try {
+              circle.bindTooltip(`${Number(island.coverage).toFixed(1)}%`, { permanent: true, direction: 'center', className: 'coverage-perc-tooltip' });
+            } catch(e) {}
 
-          // Add to island list
-          const progressPercent = island.coverage;
-          islandHTML += `
-            <div class="island-item">
-              <div class="island-name">${island.name}</div>
-              <div class="island-info"><i class="bi bi-tower"></i> BTS: <strong>${island.bts_count}</strong></div>
-              <div class="island-info"><i class="bi bi-people"></i> Pop: <strong>${island.population ? island.population.toLocaleString() : 'N/A'}</strong></div>
-              <div class="island-info"><i class="bi bi-percent"></i> Coverage: <strong>${island.coverage.toFixed(2)}%</strong></div>
-              <div class="progress-bar-container">
-                <div class="progress-fill" style="width: ${progressPercent}%"></div>
+            const progressPercent = island.coverage;
+            islandHTML += `
+              <div class="island-item">
+                <div class="island-name">${island.name}</div>
+                <div class="island-info"><i class="bi bi-tower"></i> BTS: <strong>${island.bts_count}</strong></div>
+                <div class="island-info"><i class="bi bi-people"></i> Pop: <strong>${island.population ? Number(island.population).toLocaleString() : 'N/A'}</strong></div>
+                <div class="island-info"><i class="bi bi-percent"></i> Coverage: <strong>${Number(island.coverage).toFixed(2)}%</strong></div>
+                <div class="progress-bar-container">
+                  <div class="progress-fill" style="width: ${progressPercent}%"></div>
+                </div>
               </div>
-            </div>
-          `;
-        });
+            `;
+          });
+
+          // (removed GeoJSON rectangle overlay per user request)
+
+          setTimeout(() => { try { leafletMap.invalidateSize(); } catch(e){} }, 300);
+          document.getElementById('islandList').innerHTML = islandHTML;
+        }
+
+        if (typeof L !== 'undefined') {
+          renderLeaflet(mapData);
+          return;
+        }
+
+        // Try Google Maps first; if it fails, fall back to Leaflet
+        let usedGoogle = false;
+        if (typeof google === 'object' && google.maps) {
+          try {
+            map = new google.maps.Map(document.getElementById('coverageMap'), {
+              zoom: 5,
+              center: { lat: -2, lng: 113 }
+            });
+
+            mapData.forEach(island => {
+              const marker = new google.maps.Marker({
+                position: { lat: island.lat, lng: island.lng },
+                map: map,
+                title: island.name,
+                icon: {
+                  path: google.maps.SymbolPath.CIRCLE,
+                  scale: Math.max(6, Math.log(Math.max(1, island.bts_count)) * 2),
+                  fillColor: '#667eea',
+                  fillOpacity: 0.6,
+                  strokeColor: '#764ba2',
+                  strokeWeight: 2
+                }
+              });
+
+              const infoWindow = new google.maps.InfoWindow({
+                content: `<div style="padding: 10px; font-family: Arial;">
+                  <h5 style="margin: 0 0 10px; color: #667eea;">${island.name}</h5>
+                  <p style="margin: 5px 0;"><strong>BTS:</strong> ${island.bts_count}</p>
+                  <p style="margin: 5px 0;"><strong>Population:</strong> ${island.population ? Number(island.population).toLocaleString() : 'N/A'}</p>
+                  <p style="margin: 5px 0;"><strong>Coverage:</strong> ${Number(island.coverage).toFixed(2)}%</p>
+                </div>`
+              });
+
+              marker.addListener('click', () => infoWindow.open(map, marker));
+              markers.push(marker);
+
+              const progressPercent = island.coverage;
+              islandHTML += `
+                <div class="island-item">
+                  <div class="island-name">${island.name}</div>
+                  <div class="island-info"><i class="bi bi-tower"></i> BTS: <strong>${island.bts_count}</strong></div>
+                  <div class="island-info"><i class="bi bi-people"></i> Pop: <strong>${island.population ? Number(island.population).toLocaleString() : 'N/A'}</strong></div>
+                  <div class="island-info"><i class="bi bi-percent"></i> Coverage: <strong>${Number(island.coverage).toFixed(2)}%</strong></div>
+                  <div class="progress-bar-container">
+                    <div class="progress-fill" style="width: ${progressPercent}%"></div>
+                  </div>
+                </div>
+              `;
+            });
+
+            usedGoogle = true;
+          } catch (gErr) {
+            console.error('Google Maps init failed, falling back to Leaflet:', gErr);
+            // remove potential error overlay
+            const gmErr = document.getElementById('coverageMap')?.querySelector('.gm-err-container');
+            if (gmErr) gmErr.remove();
+          }
+        }
+
+        if (!usedGoogle && typeof L !== 'undefined') {
+          // Leaflet fallback: remove any Google Maps error overlays and clear container
+          const mapContainer = document.getElementById('coverageMap');
+          // Remove Google Maps error overlay if present
+          const gmErr = mapContainer.querySelector('.gm-err-container');
+          if (gmErr) gmErr.remove();
+          // Clear any inner HTML produced by failed Google API
+          mapContainer.innerHTML = '';
+
+          // Initialize Leaflet map
+          const leafletMap = L.map('coverageMap', { preferCanvas: true }).setView([-2, 113], 5);
+          L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+            maxZoom: 18,
+            attribution: '&copy; OpenStreetMap contributors'
+          }).addTo(leafletMap);
+
+          mapData.forEach(island => {
+            const radius = Math.max(4000, Math.sqrt(Number(island.bts_count) || 1) * 12000);
+            const circle = L.circle([island.lat, island.lng], {
+              color: '#764ba2',
+              fillColor: '#667eea',
+              fillOpacity: 0.5,
+              radius: radius
+            }).addTo(leafletMap);
+
+            const popup = `<div style="padding:10px;font-family:Arial;">
+              <h5 style="margin:0 0 8px;color:#667eea;">${island.name}</h5>
+              <p style="margin:4px 0;"><strong>BTS:</strong> ${island.bts_count}</p>
+              <p style="margin:4px 0;"><strong>Population:</strong> ${island.population ? Number(island.population).toLocaleString() : 'N/A'}</p>
+              <p style="margin:4px 0;"><strong>Coverage:</strong> ${Number(island.coverage).toFixed(2)}%</p>
+            </div>`;
+
+            circle.bindPopup(popup);
+
+            // show coverage percent inside the circle (Leaflet)
+            try {
+              circle.bindTooltip(`${Number(island.coverage).toFixed(1)}%`, { permanent: true, direction: 'center', className: 'coverage-perc-tooltip' });
+            } catch(e) {}
+
+            const progressPercent = island.coverage;
+            islandHTML += `
+              <div class="island-item">
+                <div class="island-name">${island.name}</div>
+                <div class="island-info"><i class="bi bi-tower"></i> BTS: <strong>${island.bts_count}</strong></div>
+                <div class="island-info"><i class="bi bi-people"></i> Pop: <strong>${island.population ? Number(island.population).toLocaleString() : 'N/A'}</strong></div>
+                <div class="island-info"><i class="bi bi-percent"></i> Coverage: <strong>${Number(island.coverage).toFixed(2)}</strong></div>
+                <div class="progress-bar-container">
+                  <div class="progress-fill" style="width: ${progressPercent}%"></div>
+                </div>
+              </div>
+            `;
+          });
+
+          // Load GeoJSON island shapes (simplified) and style
+          fetch('assets/data/indonesia_islands.geojson')
+            .then(r => r.json())
+            .then(geo => {
+              const layer = L.geoJSON(geo, {
+                style: function(feature) {
+                  return { color: '#2b3a67', weight: 1.5, fillColor: '#e6eef8', fillOpacity: 0.5 };
+                }
+              }).addTo(leafletMap);
+              try { leafletMap.fitBounds(layer.getBounds(), { padding: [40, 40] }); } catch(e){}
+            })
+            .catch(()=>{});
+
+          // Ensure tiles render correctly
+          setTimeout(() => { try { leafletMap.invalidateSize(); } catch(e){} }, 300);
+        } else {
+          // Neither Google Maps nor Leaflet available — render a simple SVG plot as fallback
+          const mapContainer = document.getElementById('coverageMap');
+          mapContainer.innerHTML = '';
+          const svgNS = 'http://www.w3.org/2000/svg';
+          const svg = document.createElementNS(svgNS, 'svg');
+          svg.setAttribute('width', '100%');
+          svg.setAttribute('height', '100%');
+          svg.setAttribute('viewBox', '0 0 1200 600');
+          svg.style.borderRadius = '10px';
+          svg.style.background = 'linear-gradient(#eef2f6, #f8fafc)';
+
+          // compute bounding box for lat/lng
+          const lats = mapData.map(i => Number(i.lat));
+          const lngs = mapData.map(i => Number(i.lng));
+          const minLat = Math.min(...lats); const maxLat = Math.max(...lats);
+          const minLng = Math.min(...lngs); const maxLng = Math.max(...lngs);
+
+          const padding = 60; // padding inside viewBox
+          const w = 1200 - padding * 2;
+          const h = 600 - padding * 2;
+
+          mapData.forEach(island => {
+            const lat = Number(island.lat);
+            const lng = Number(island.lng);
+            // normalize
+            const nx = (lng - minLng) / (maxLng - minLng || 1);
+            const ny = (lat - minLat) / (maxLat - minLat || 1);
+            const x = Math.round(padding + nx * w);
+            const y = Math.round(padding + (1 - ny) * h); // invert lat to y
+
+            const r = Math.max(6, Math.log(Number(island.bts_count) || 1) * 6);
+
+            const circle = document.createElementNS(svgNS, 'circle');
+            circle.setAttribute('cx', x);
+            circle.setAttribute('cy', y);
+            circle.setAttribute('r', r);
+            circle.setAttribute('fill', '#667eea');
+            circle.setAttribute('fill-opacity', '0.75');
+            circle.setAttribute('stroke', '#764ba2');
+            circle.setAttribute('stroke-width', '1.5');
+
+            const title = document.createElementNS(svgNS, 'title');
+            title.textContent = `${island.name} — BTS: ${island.bts_count}\nPopulation: ${island.population || 'N/A'}\nCoverage: ${Number(island.coverage).toFixed(2)}%`;
+            circle.appendChild(title);
+
+            svg.appendChild(circle);
+
+            // add percentage label inside circle (SVG fallback)
+            const txtPerc = document.createElementNS(svgNS, 'text');
+            txtPerc.setAttribute('x', x);
+            txtPerc.setAttribute('y', y + 3);
+            txtPerc.setAttribute('font-size', Math.max(12, Math.round(r * 0.5)));
+            txtPerc.setAttribute('fill', '#ffffff');
+            txtPerc.setAttribute('text-anchor', 'middle');
+            txtPerc.setAttribute('dominant-baseline', 'middle');
+            txtPerc.setAttribute('font-weight', '700');
+            txtPerc.textContent = `${Number(island.coverage).toFixed(0)}%`;
+            svg.appendChild(txtPerc);
+          });
+
+          mapContainer.appendChild(svg);
+        }
 
         document.getElementById('islandList').innerHTML = islandHTML;
       }
+    })
+    .catch(err => {
+      console.error('Error fetching BTS coverage map data:', err);
+      document.getElementById('coverageMap').innerHTML = '<div style="padding:40px;text-align:center;color:red;">Failed to load coverage data.</div>';
     });
 
   // Load coverage statistics

@@ -30,9 +30,35 @@ class NewsService {
         ];
     }
 
+    // Get all news (admin view)
+    public function getAllNews($page = 1, $limit = 10) {
+        $offset = ($page - 1) * $limit;
+        $news = $this->model->getAll($limit, $offset);
+        $total = $this->model->getTotalCount();
+
+        return [
+            'data' => $news,
+            'pagination' => [
+                'total' => $total,
+                'page' => $page,
+                'limit' => $limit,
+                'pages' => ceil($total / $limit)
+            ]
+        ];
+    }
+
     // Get news by slug
     public function getNewsBySlug($slug) {
         $news = $this->model->getBySlug($slug);
+        if (!$news) {
+            return ['success' => false, 'error' => 'News not found'];
+        }
+        return ['success' => true, 'data' => $news];
+    }
+
+    // Get news by ID (for admin/edit)
+    public function getNewsById($id) {
+        $news = $this->model->getById($id);
         if (!$news) {
             return ['success' => false, 'error' => 'News not found'];
         }
@@ -108,9 +134,6 @@ class NewsService {
 
         if (empty($data['content'])) {
             $errors[] = 'Content is required';
-        }
-        if (strlen($data['content']) < 100) {
-            $errors[] = 'Content must be at least 100 characters';
         }
 
         if (empty($data['category'])) {

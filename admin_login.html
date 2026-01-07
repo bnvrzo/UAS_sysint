@@ -1,0 +1,272 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Admin Login - Towerindo</title>
+    <link rel="stylesheet" href="assets/bootstrap/css/bootstrap.min.css">
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.0/font/bootstrap-icons.css">
+    <style>
+        body {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-family: 'Inter Tight', sans-serif;
+        }
+
+        .login-container {
+            width: 100%;
+            max-width: 420px;
+            padding: 20px;
+        }
+
+        .login-card {
+            background: white;
+            border-radius: 15px;
+            box-shadow: 0 10px 40px rgba(0, 0, 0, 0.2);
+            padding: 40px;
+        }
+
+        .login-header {
+            text-align: center;
+            margin-bottom: 30px;
+        }
+
+        .login-header h2 {
+            color: #1a1a2e;
+            font-weight: 700;
+            margin-bottom: 5px;
+        }
+
+        .login-header small {
+            color: #666;
+        }
+
+        .form-group {
+            margin-bottom: 20px;
+        }
+
+        .form-label {
+            color: #333;
+            font-weight: 600;
+            margin-bottom: 8px;
+        }
+
+        .form-control {
+            border: 2px solid #e9ecef;
+            border-radius: 8px;
+            padding: 12px 15px;
+            font-size: 1rem;
+            transition: all 0.3s;
+        }
+
+        .form-control:focus {
+            border-color: #667eea;
+            box-shadow: 0 0 0 0.2rem rgba(102, 126, 234, 0.25);
+        }
+
+        .btn-login {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            border: none;
+            padding: 12px 20px;
+            border-radius: 8px;
+            font-weight: 600;
+            width: 100%;
+            cursor: pointer;
+            transition: all 0.3s;
+            margin-top: 10px;
+        }
+
+        .btn-login:hover {
+            background: linear-gradient(135deg, #764ba2 0%, #667eea 100%);
+            transform: translateY(-2px);
+            box-shadow: 0 6px 20px rgba(102, 126, 234, 0.3);
+            color: white;
+        }
+
+        .btn-login:disabled {
+            background: #ccc;
+            cursor: not-allowed;
+            transform: none;
+        }
+
+        .alert {
+            border-radius: 8px;
+            border: none;
+            margin-bottom: 20px;
+        }
+
+        .alert-danger {
+            background: #f8d7da;
+            color: #721c24;
+        }
+
+        .back-link {
+            text-align: center;
+            margin-top: 20px;
+        }
+
+        .back-link a {
+            color: #667eea;
+            text-decoration: none;
+            font-weight: 600;
+            transition: all 0.3s;
+        }
+
+        .back-link a:hover {
+            color: #764ba2;
+            text-decoration: underline;
+        }
+
+        .login-loading {
+            display: none;
+            text-align: center;
+            margin-top: 10px;
+        }
+
+        .spinner-border {
+            width: 20px;
+            height: 20px;
+            margin-right: 8px;
+            vertical-align: middle;
+        }
+    </style>
+</head>
+<body>
+    <div class="login-container">
+        <div class="login-card">
+            <div class="login-header">
+                <h2>Towerindo Admin</h2>
+                <small>Login Panel</small>
+            </div>
+
+            <div id="errorAlert" class="alert alert-danger" style="display: none;">
+                <i class="bi bi-exclamation-circle"></i>
+                <span id="errorMessage"></span>
+            </div>
+
+            <form id="loginForm" onsubmit="handleLogin(event)">
+                <div class="form-group">
+                    <label for="username" class="form-label">
+                        <i class="bi bi-person-circle"></i> Username
+                    </label>
+                    <input 
+                        type="text" 
+                        id="username" 
+                        class="form-control" 
+                        placeholder="Enter your username" 
+                        required
+                        autocomplete="username"
+                    >
+                </div>
+
+                <div class="form-group">
+                    <label for="password" class="form-label">
+                        <i class="bi bi-lock-fill"></i> Password
+                    </label>
+                    <input 
+                        type="password" 
+                        id="password" 
+                        class="form-control" 
+                        placeholder="Enter your password" 
+                        required
+                        autocomplete="current-password"
+                    >
+                </div>
+
+                <button type="submit" id="loginBtn" class="btn btn-login">
+                    <i class="bi bi-box-arrow-in-right"></i> Login
+                </button>
+
+                <div class="login-loading" id="loginLoading">
+                    <div class="spinner-border spinner-border-sm text-primary" role="status">
+                        <span class="visually-hidden">Loading...</span>
+                    </div>
+                    <span>Logging in...</span>
+                </div>
+            </form>
+
+            <div class="back-link">
+                <a href="Index.html">
+                    <i class="bi bi-house"></i> Back to Home
+                </a>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        const API_URL = './backend/routes';
+
+        function handleLogin(event) {
+            event.preventDefault();
+
+            const username = document.getElementById('username').value.trim();
+            const password = document.getElementById('password').value;
+            const loginBtn = document.getElementById('loginBtn');
+            const loginLoading = document.getElementById('loginLoading');
+            const errorAlert = document.getElementById('errorAlert');
+            const errorMessage = document.getElementById('errorMessage');
+
+            if (!username || !password) {
+                showError('Username dan password harus diisi.');
+                return;
+            }
+
+            // Show loading state
+            loginBtn.disabled = true;
+            loginLoading.style.display = 'block';
+            errorAlert.style.display = 'none';
+
+            // Send login request
+            fetch(`${API_URL}/auth.php?action=login`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                credentials: 'include',
+                body: JSON.stringify({ username: username, password: password })
+            })
+            .then(r => r.json())
+            .then(data => {
+                loginBtn.disabled = false;
+                loginLoading.style.display = 'none';
+
+                if (data.success) {
+                    // Redirect to admin panel
+                    window.location.href = 'admin/';
+                } else {
+                    showError(data.error || 'Login gagal. Periksa username dan password Anda.');
+                }
+            })
+            .catch(err => {
+                console.error('Login error:', err);
+                loginBtn.disabled = false;
+                loginLoading.style.display = 'none';
+                showError('Terjadi kesalahan. Silakan coba lagi.');
+            });
+        }
+
+        function showError(message) {
+            const errorAlert = document.getElementById('errorAlert');
+            const errorMessage = document.getElementById('errorMessage');
+            errorMessage.textContent = message;
+            errorAlert.style.display = 'block';
+        }
+
+        // Check if already logged in, redirect to admin
+        window.addEventListener('load', function() {
+            fetch(`${API_URL}/auth.php?action=status`, {
+                credentials: 'include'
+            })
+            .then(r => r.json())
+            .then(data => {
+                if (data.authenticated && data.role === 'admin') {
+                    window.location.href = 'admin/';
+                }
+            })
+            .catch(err => console.log('Status check:', err));
+        });
+    </script>
+</body>
+</html>

@@ -5,10 +5,10 @@ RewriteBase /UAS_sysint/
 # Block direct access to sensitive backend folders (but allow routes/)
 RewriteRule ^backend/(config|models|services)/ - [F]
 
-# Redirect News.html and any html version to News.php
-RewriteCond %{REQUEST_FILENAME} !-f
-RewriteCond %{REQUEST_FILENAME} !-d
-RewriteRule ^News\.html$ News.php [L,R=301]
+# Redirect legacy News.html (any request) to dynamic News.php
+# This ensures old links and static pages point to the dynamic content
+RewriteCond %{REQUEST_URI} News\.html [NC]
+RewriteRule ^News\.html$ /UAS_sysint/News.php [L,R=301]
 
 # Set correct MIME types
 AddType application/json .json

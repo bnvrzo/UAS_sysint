@@ -14,6 +14,26 @@
             font-family: 'Inter Tight', sans-serif;
         }
         
+        /* Loading overlay for auth check */
+        #authLoadingOverlay {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(0, 0, 0, 0.5);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            z-index: 9999;
+        }
+        
+        .spinner-border {
+            width: 50px;
+            height: 50px;
+            color: #667eea;
+        }
+        
         .sidebar {
             background: #1a1a2e;
             color: white;
@@ -152,6 +172,22 @@
     </style>
 </head>
 <body>
+    <!-- Auth Loading Overlay -->
+    <div id="authLoadingOverlay">
+        <div class="text-center text-white">
+            <div class="spinner-border" role="status">
+                <span class="visually-hidden">Loading...</span>
+            </div>
+            <p class="mt-3">Checking authentication...</p>
+        </div>
+    </div>
+
+    <!-- Hidden content until auth verified -->
+    <div id="adminContent" style="display: none;">
+        <div id="authPendingBanner" style="display:none; background:#fff3cd; border:1px solid #ffeeba; padding:8px 12px; border-radius:6px; color:#856404; margin-bottom:12px; text-align:center;">
+            Checking authentication... you will be redirected if not logged in.
+        </div>
+    
     <!-- Sidebar -->
     <div class="sidebar">
         <div class="text-center mb-4">
@@ -185,9 +221,14 @@
             <div class="tab-pane fade show active" id="news">
                 <div class="d-flex justify-content-between align-items-center mb-4">
                     <h2><i class="bi bi-newspaper"></i> Manage News</h2>
-                    <button class="btn btn-primary" data-bs-toggle="modal" data-bs-target="#newsModal">
-                        <i class="bi bi-plus-circle"></i> New Article
-                    </button>
+                    <div>
+                        <button class="btn btn-primary" data-bs-toggle="modal" data-bs-target="#newsModal">
+                            <i class="bi bi-plus-circle"></i> New Article
+                        </button>
+                        <button id="logoutBtn" class="btn btn-outline-light ms-2" onclick="adminLogout()">
+                            <i class="bi bi-box-arrow-right"></i> Logout
+                        </button>
+                    </div>
                 </div>
 
                 <div class="card">
@@ -390,6 +431,7 @@
                                 <option value="published">Published</option>
                             </select>
                         </div>
+                        <div id="newsErrors" style="display:none;" class="alert alert-danger"></div>
                     </form>
                 </div>
                 <div class="modal-footer">
@@ -549,6 +591,23 @@
             }
         }
 
+        async function adminLogout() {
+            try {
+                const res = await fetch(`${API_URL}/auth.php?action=logout`, {
+                    method: 'POST',
+                    headers: {'Content-Type': 'application/json'}
+                });
+                const json = await res.json();
+                if (json.success) {
+                    showLoginModal();
+                } else {
+                    alert('Logout failed');
+                }
+            } catch (e) {
+                alert('Logout error');
+            }
+        }
+
         // Load initial data after auth
         function loadInitialData() {
             loadNews();
@@ -568,7 +627,8 @@
 
         // NEWS FUNCTIONS
         function loadNews() {
-            fetch(`${API_URL}/news.php?route=published&limit=100`)
+            // Admin view: request all news (requires session)
+            fetch(`${API_URL}/news.php?route=all&limit=100`, {credentials: 'include'})
                 .then(r => r.json())
                 .then(data => {
                     let html = '';
@@ -607,37 +667,83 @@
                 author_id: 1 // Default admin user
             };
 
+            // Client-side validation
+            const errors = [];
+            if (!data.title || data.title.trim().length === 0) errors.push('Title is required');
+            if (!data.content || data.content.trim().length === 0) errors.push('Content is required');
+            if (!data.category || data.category.trim().length === 0) data.category = 'General';
+
+            const errorEl = document.getElementById('newsErrors');
+            if (errors.length > 0) {
+                errorEl.style.display = 'block';
+                errorEl.innerHTML = '<ul><li>' + errors.join('</li><li>') + '</li></ul>';
+                return;
+            } else {
+                errorEl.style.display = 'none';
+                errorEl.innerHTML = '';
+            }
+
             const method = id ? 'PUT' : 'POST';
             const endpoint = id ? `/news.php?route=${id}` : `/news.php?route=create`;
 
             fetch(`${API_URL}${endpoint}`, {
                 method: method,
+                credentials: 'include',
                 headers: {'Content-Type': 'application/json'},
                 body: JSON.stringify(data)
             })
             .then(r => r.json())
             .then(res => {
                 if (res.success) {
-                    alert('News saved successfully!');
                     document.getElementById('newsForm').reset();
                     document.getElementById('newsId').value = '';
                     bootstrap.Modal.getInstance(document.getElementById('newsModal')).hide();
                     loadNews();
                 } else {
-                    alert('Error: ' + (res.error || 'Unknown error'));
+                    // Show server-side validation errors nicely
+                    let serverErrors = [];
+                    if (res.errors && Array.isArray(res.errors)) serverErrors = res.errors;
+                    else if (res.error) serverErrors = [res.error];
+                    else serverErrors = ['Unknown server error'];
+
+                    errorEl.style.display = 'block';
+                    errorEl.innerHTML = '<ul><li>' + serverErrors.join('</li><li>') + '</li></ul>';
                 }
+            }).catch(err => {
+                errorEl.style.display = 'block';
+                errorEl.innerText = 'Network error: ' + err.message;
             });
         }
 
         function editNews(id) {
-            // Implement edit functionality
-            alert('Edit functionality to be implemented');
+            // Fetch news by ID and populate modal for editing
+            fetch(`${API_URL}/news.php?route=${id}`, {credentials: 'include'})
+                .then(r => r.json())
+                .then(res => {
+                    if (res.success && res.data) {
+                        const news = res.data;
+                        document.getElementById('newsId').value = news.id;
+                        document.getElementById('newsTitle').value = news.title;
+                        document.getElementById('newsContent').value = news.content;
+                        document.getElementById('newsCategory').value = news.category;
+                        document.getElementById('newsImage').value = news.image_url || '';
+                        document.getElementById('newsStatus').value = news.status;
+                        const modalEl = document.getElementById('newsModal');
+                        const modal = new bootstrap.Modal(modalEl);
+                        modal.show();
+                    } else {
+                        alert('Unable to load news for edit: ' + (res.error || 'Unknown'));
+                    }
+                }).catch(err => {
+                    alert('Error loading news: ' + err.message);
+                });
         }
 
         function deleteNews(id) {
             if (confirm('Are you sure?')) {
                 fetch(`${API_URL}/news.php?route=${id}`, {
-                    method: 'DELETE'
+                    method: 'DELETE',
+                    credentials: 'include'
                 })
                 .then(r => r.json())
                 .then(res => {
@@ -824,6 +930,8 @@
             document.getElementById('newsForm').reset();
             document.getElementById('newsId').value = '';
             document.getElementById('newsModalTitle').textContent = 'Create News Article';
+            const errorEl = document.getElementById('newsErrors');
+            if (errorEl) { errorEl.style.display = 'none'; errorEl.innerHTML = ''; }
         });
 
         document.getElementById('growthModal')?.addEventListener('show.bs.modal', function() {
@@ -833,6 +941,54 @@
         document.getElementById('coverageModal')?.addEventListener('show.bs.modal', function() {
             document.getElementById('coverageForm').reset();
             document.getElementById('coverageId').value = '';
+        });
+    </script>
+    </div><!-- End adminContent -->
+
+    <!-- Auth check script (runs before page loads) -->
+    <script>
+        // Check authentication on page load
+        window.addEventListener('load', function() {
+            // Start auth check but don't block the UI for too long.
+            const overlay = document.getElementById('authLoadingOverlay');
+            const content = document.getElementById('adminContent');
+            const pendingBanner = document.getElementById('authPendingBanner');
+
+            let resolved = false;
+
+            // After short delay, reveal UI and show a non-blocking pending banner
+            const revealTimeout = setTimeout(() => {
+                if (!resolved) {
+                    overlay.style.display = 'none';
+                    content.style.display = 'block';
+                    pendingBanner.style.display = 'block';
+                }
+            }, 700);
+
+            fetch(`${API_URL}/auth.php?action=status`, {
+                credentials: 'include'
+            })
+            .then(r => r.json())
+            .then(data => {
+                resolved = true;
+                clearTimeout(revealTimeout);
+                if (data.authenticated && data.role === 'admin') {
+                    // authenticated — ensure UI visible and remove banner
+                    overlay.style.display = 'none';
+                    content.style.display = 'block';
+                    pendingBanner.style.display = 'none';
+                } else {
+                    // not authenticated — redirect immediately
+                    window.location.href = '../admin_login.html';
+                }
+            })
+            .catch(err => {
+                console.error('Auth check failed:', err);
+                resolved = true;
+                clearTimeout(revealTimeout);
+                // On network error, redirect to login to be safe
+                window.location.href = '../admin_login.html';
+            });
         });
     </script>
 </body>

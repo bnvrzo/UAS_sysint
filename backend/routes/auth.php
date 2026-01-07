@@ -52,7 +52,24 @@ class AuthHandler {
 
     // Check if user is logged in
     public static function isLoggedIn() {
-        return isset($_SESSION['user_id']) && isset($_SESSION['role']);
+        // Session timeout (seconds)
+        $timeout = 3600; // 1 hour
+
+        if (!isset($_SESSION['user_id']) || !isset($_SESSION['role'])) {
+            return false;
+        }
+
+        if (isset($_SESSION['login_time']) && (time() - $_SESSION['login_time']) > $timeout) {
+            // Session expired
+            session_unset();
+            session_destroy();
+            return false;
+        }
+
+        // refresh login time
+        $_SESSION['login_time'] = time();
+
+        return true;
     }
 
     // Check if user is admin

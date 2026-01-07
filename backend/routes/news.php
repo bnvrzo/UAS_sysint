@@ -31,9 +31,21 @@ try {
                 $page = isset($_GET['page']) ? intval($_GET['page']) : 1;
                 $limit = isset($_GET['limit']) ? intval($_GET['limit']) : 10;
                 $response = $service->getPublishedNews($page, $limit);
+            } elseif (isset($request[0]) && $request[0] === 'all') {
+                // Admin: get all news
+                if (empty($_SESSION['user_id']) || ($_SESSION['role'] ?? '') !== 'admin') {
+                    Response::unauthorized('Admin login required');
+                }
+                $page = isset($_GET['page']) ? intval($_GET['page']) : 1;
+                $limit = isset($_GET['limit']) ? intval($_GET['limit']) : 100;
+                $response = $service->getAllNews($page, $limit);
             } elseif (isset($request[0]) && !is_numeric($request[0]) && $request[0] !== '') {
                 // Get news by slug
                 $response = $service->getNewsBySlug($request[0]);
+            } elseif (isset($request[0]) && is_numeric($request[0])) {
+                // Get news by ID (admin edit)
+                $id = intval($request[0]);
+                $response = $service->getNewsById($id);
             }
             break;
 
@@ -101,6 +113,17 @@ try {
     }
 } catch (Exception $e) {
     $response = ['success' => false, 'error' => $e->getMessage()];
+}
+
+// Ensure consistent response shape for front-end
+if (!isset($response['success'])) {
+    if (isset($response['valid'])) {
+        $response = array_merge(['success' => (bool)$response['valid']], $response);
+    } elseif (isset($response['errors'])) {
+        $response = array_merge(['success' => false], $response);
+    } else {
+        $response = array_merge(['success' => true], $response);
+    }
 }
 
 echo json_encode($response);
