@@ -1,0 +1,994 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Admin Panel - Towerindo</title>
+    <link rel="stylesheet" href="../assets/bootstrap/css/bootstrap.min.css">
+    <link rel="stylesheet" href="../assets/theme/css/style.css">
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.0/font/bootstrap-icons.css">
+    <style>
+        body {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            font-family: 'Inter Tight', sans-serif;
+        }
+        
+        /* Loading overlay for auth check */
+        #authLoadingOverlay {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(0, 0, 0, 0.5);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            z-index: 9999;
+        }
+        
+        .spinner-border {
+            width: 50px;
+            height: 50px;
+            color: #667eea;
+        }
+        
+        .sidebar {
+            background: #1a1a2e;
+            color: white;
+            min-height: 100vh;
+            padding: 20px;
+            position: fixed;
+            width: 250px;
+            left: 0;
+            top: 0;
+        }
+        
+        .sidebar .nav-link {
+            color: #ddd;
+            padding: 12px 15px;
+            margin: 10px 0;
+            border-radius: 5px;
+            transition: all 0.3s;
+        }
+        
+        .sidebar .nav-link:hover,
+        .sidebar .nav-link.active {
+            background: #667eea;
+            color: white;
+        }
+        
+        .main-content {
+            margin-left: 250px;
+            padding: 30px;
+        }
+        
+        .card {
+            border: none;
+            border-radius: 10px;
+            box-shadow: 0 4px 15px rgba(0,0,0,0.1);
+            background: white;
+        }
+        
+        .btn-primary {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            border: none;
+        }
+        
+        .btn-primary:hover {
+            background: linear-gradient(135deg, #764ba2 0%, #667eea 100%);
+        }
+        
+        .table-responsive {
+            border-radius: 10px;
+            overflow: hidden;
+        }
+        
+        .badge-published {
+            background: #28a745;
+        }
+        
+        .badge-draft {
+            background: #ffc107;
+        }
+        
+        .modal-content {
+            border-radius: 10px;
+            border: none;
+        }
+        
+        .form-control, .form-select {
+            border: 1px solid #ddd;
+            border-radius: 5px;
+            padding: 10px;
+        }
+        
+        .form-control:focus {
+            border-color: #667eea;
+            box-shadow: 0 0 0 0.2rem rgba(102, 126, 234, 0.25);
+        }
+        
+        .editor-toolbar {
+            background: #f5f5f5;
+            border: 1px solid #ddd;
+            padding: 10px;
+            border-radius: 5px 5px 0 0;
+            display: flex;
+            gap: 5px;
+            flex-wrap: wrap;
+        }
+        
+        .editor-toolbar button {
+            background: white;
+            border: 1px solid #ddd;
+            padding: 5px 10px;
+            border-radius: 3px;
+            cursor: pointer;
+            font-size: 14px;
+        }
+        
+        .editor-toolbar button:hover {
+            background: #667eea;
+            color: white;
+            border-color: #667eea;
+        }
+        
+        textarea.editor {
+            border-radius: 0 0 5px 5px;
+        }
+        
+        .alert-info {
+            background: #d1ecf1;
+            color: #0c5460;
+            border: 1px solid #bee5eb;
+        }
+        
+        .loader {
+            display: none;
+            position: fixed;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            z-index: 9999;
+        }
+        
+        .loader.show {
+            display: block;
+        }
+        
+        @media (max-width: 768px) {
+            .sidebar {
+                width: 100%;
+                min-height: auto;
+                position: relative;
+            }
+            
+            .main-content {
+                margin-left: 0;
+                padding: 15px;
+            }
+        }
+    </style>
+</head>
+<body>
+    <!-- Auth Loading Overlay -->
+    <div id="authLoadingOverlay">
+        <div class="text-center text-white">
+            <div class="spinner-border" role="status">
+                <span class="visually-hidden">Loading...</span>
+            </div>
+            <p class="mt-3">Checking authentication...</p>
+        </div>
+    </div>
+
+    <!-- Hidden content until auth verified -->
+    <div id="adminContent" style="display: none;">
+        <div id="authPendingBanner" style="display:none; background:#fff3cd; border:1px solid #ffeeba; padding:8px 12px; border-radius:6px; color:#856404; margin-bottom:12px; text-align:center;">
+            Checking authentication... you will be redirected if not logged in.
+        </div>
+    
+    <!-- Sidebar -->
+    <div class="sidebar">
+        <div class="text-center mb-4">
+            <h4 class="mb-1">Towerindo</h4>
+            <small>Admin Panel</small>
+        </div>
+        <nav class="nav flex-column">
+            <a class="nav-link active" href="#news" data-bs-toggle="pill">
+                <i class="bi bi-newspaper"></i> Manage News
+            </a>
+            <a class="nav-link" href="#growth" data-bs-toggle="pill">
+                <i class="bi bi-graph-up"></i> Customer Growth
+            </a>
+            <a class="nav-link" href="#coverage" data-bs-toggle="pill">
+                <i class="bi bi-geo-alt"></i> BTS Coverage
+            </a>
+            <a class="nav-link" href="#settings" data-bs-toggle="pill">
+                <i class="bi bi-gear"></i> Settings
+            </a>
+            <hr class="bg-secondary">
+            <a class="nav-link" href="../Index.html">
+                <i class="bi bi-house"></i> Back to Site
+            </a>
+        </nav>
+    </div>
+
+    <!-- Main Content -->
+    <div class="main-content">
+        <div class="tab-content">
+            <!-- News Management -->
+            <div class="tab-pane fade show active" id="news">
+                <div class="d-flex justify-content-between align-items-center mb-4">
+                    <h2><i class="bi bi-newspaper"></i> Manage News</h2>
+                    <div>
+                        <button class="btn btn-primary" data-bs-toggle="modal" data-bs-target="#newsModal">
+                            <i class="bi bi-plus-circle"></i> New Article
+                        </button>
+                        <button id="logoutBtn" class="btn btn-outline-light ms-2" onclick="adminLogout()">
+                            <i class="bi bi-box-arrow-right"></i> Logout
+                        </button>
+                    </div>
+                </div>
+
+                <div class="card">
+                    <div class="card-body">
+                        <div class="table-responsive">
+                            <table class="table table-hover">
+                                <thead class="table-light">
+                                    <tr>
+                                        <th>Title</th>
+                                        <th>Category</th>
+                                        <th>Status</th>
+                                        <th>Date</th>
+                                        <th>Action</th>
+                                    </tr>
+                                </thead>
+                                <tbody id="newsTable">
+                                    <tr>
+                                        <td colspan="5" class="text-center text-muted">Loading...</td>
+                                    </tr>
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Customer Growth Management -->
+            <div class="tab-pane fade" id="growth">
+                <div class="d-flex justify-content-between align-items-center mb-4">
+                    <h2><i class="bi bi-graph-up"></i> Customer Growth Data</h2>
+                    <button class="btn btn-primary" data-bs-toggle="modal" data-bs-target="#growthModal">
+                        <i class="bi bi-plus-circle"></i> Add Year
+                    </button>
+                </div>
+
+                <div class="row mb-4">
+                    <div class="col-md-6">
+                        <div class="card">
+                            <div class="card-body">
+                                <h5 class="card-title">Growth Summary</h5>
+                                <div id="growthSummary">Loading...</div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="card">
+                    <div class="card-body">
+                        <div class="table-responsive">
+                            <table class="table table-hover">
+                                <thead class="table-light">
+                                    <tr>
+                                        <th>Year</th>
+                                        <th>Total Customers</th>
+                                        <th>Growth %</th>
+                                        <th>Action</th>
+                                    </tr>
+                                </thead>
+                                <tbody id="growthTable">
+                                    <tr>
+                                        <td colspan="4" class="text-center text-muted">Loading...</td>
+                                    </tr>
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- BTS Coverage Management -->
+            <div class="tab-pane fade" id="coverage">
+                <div class="d-flex justify-content-between align-items-center mb-4">
+                    <h2><i class="bi bi-geo-alt"></i> BTS Coverage Areas</h2>
+                    <button class="btn btn-primary" data-bs-toggle="modal" data-bs-target="#coverageModal">
+                        <i class="bi bi-plus-circle"></i> Add Area
+                    </button>
+                </div>
+
+                <div class="row mb-4" id="coverageStats">
+                    <div class="col-md-3">
+                        <div class="card text-center">
+                            <div class="card-body">
+                                <h6>Total Islands</h6>
+                                <h3 id="totalIslands">-</h3>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="col-md-3">
+                        <div class="card text-center">
+                            <div class="card-body">
+                                <h6>Total BTS</h6>
+                                <h3 id="totalBTS">-</h3>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="col-md-3">
+                        <div class="card text-center">
+                            <div class="card-body">
+                                <h6>Avg BTS/Island</h6>
+                                <h3 id="avgBTS">-</h3>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="col-md-3">
+                        <div class="card text-center">
+                            <div class="card-body">
+                                <h6>Avg Coverage</h6>
+                                <h3 id="avgCoverage">-</h3>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="card">
+                    <div class="card-body">
+                        <div class="table-responsive">
+                            <table class="table table-hover">
+                                <thead class="table-light">
+                                    <tr>
+                                        <th>Island</th>
+                                        <th>BTS Count</th>
+                                        <th>Population</th>
+                                        <th>Coverage %</th>
+                                        <th>Action</th>
+                                    </tr>
+                                </thead>
+                                <tbody id="coverageTable">
+                                    <tr>
+                                        <td colspan="5" class="text-center text-muted">Loading...</td>
+                                    </tr>
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Settings -->
+            <div class="tab-pane fade" id="settings">
+                <h2><i class="bi bi-gear"></i> Settings</h2>
+                <div class="alert alert-info mt-4">
+                    <i class="bi bi-info-circle"></i> Admin panel features:<br>
+                    ✓ News CRUD Management<br>
+                    ✓ Customer Growth Data<br>
+                    ✓ BTS Coverage Areas<br>
+                    ✓ Database Backup to XML<br>
+                    ✓ Activity Logging
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- News Modal -->
+    <div class="modal fade" id="newsModal" tabindex="-1">
+        <div class="modal-dialog modal-lg">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title" id="newsModalTitle">Create News Article</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                </div>
+                <div class="modal-body">
+                    <form id="newsForm">
+                        <input type="hidden" id="newsId">
+                        
+                        <div class="mb-3">
+                            <label class="form-label">Title</label>
+                            <input type="text" class="form-control" id="newsTitle" required>
+                        </div>
+
+                        <div class="mb-3">
+                            <label class="form-label">Category</label>
+                            <select class="form-select" id="newsCategory">
+                                <option value="Announcement">Announcement</option>
+                                <option value="Press Release">Press Release</option>
+                                <option value="Technology">Technology</option>
+                                <option value="Partnership">Partnership</option>
+                            </select>
+                        </div>
+
+                        <div class="mb-3">
+                            <label class="form-label">Content</label>
+                            <div class="editor-toolbar">
+                                <button type="button" onclick="formatText('bold')"><b>B</b></button>
+                                <button type="button" onclick="formatText('italic')"><i>I</i></button>
+                                <button type="button" onclick="formatText('underline')"><u>U</u></button>
+                                <button type="button" onclick="formatText('createLink')">Link</button>
+                            </div>
+                            <textarea class="form-control editor" id="newsContent" rows="6" required></textarea>
+                        </div>
+
+                        <div class="mb-3">
+                            <label class="form-label">Image URL</label>
+                            <input type="url" class="form-control" id="newsImage">
+                        </div>
+
+                        <div class="mb-3">
+                            <label class="form-label">Status</label>
+                            <select class="form-select" id="newsStatus">
+                                <option value="draft">Draft</option>
+                                <option value="published">Published</option>
+                            </select>
+                        </div>
+                        <div id="newsErrors" style="display:none;" class="alert alert-danger"></div>
+                    </form>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Close</button>
+                    <button type="button" class="btn btn-primary" onclick="saveNews()">Save</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Growth Modal -->
+    <div class="modal fade" id="growthModal" tabindex="-1">
+        <div class="modal-dialog">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title">Add Growth Data</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                </div>
+                <div class="modal-body">
+                    <form id="growthForm">
+                        <div class="mb-3">
+                            <label class="form-label">Year</label>
+                            <input type="number" class="form-control" id="growthYear" min="2000" max="2100" required>
+                        </div>
+                        <div class="mb-3">
+                            <label class="form-label">Total Customers</label>
+                            <input type="number" class="form-control" id="growthCustomers" min="0" required>
+                        </div>
+                        <div class="mb-3">
+                            <label class="form-label">Growth % (optional)</label>
+                            <input type="number" class="form-control" id="growthPercentage" step="0.01" min="0" max="100">
+                        </div>
+                    </form>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Close</button>
+                    <button type="button" class="btn btn-primary" onclick="saveGrowth()">Save</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Coverage Modal -->
+    <div class="modal fade" id="coverageModal" tabindex="-1">
+        <div class="modal-dialog">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title">Add Coverage Area</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                </div>
+                <div class="modal-body">
+                    <form id="coverageForm">
+                        <input type="hidden" id="coverageId">
+                        
+                        <div class="mb-3">
+                            <label class="form-label">Island Name</label>
+                            <input type="text" class="form-control" id="coverageIsland" required>
+                        </div>
+                        <div class="mb-3">
+                            <label class="form-label">BTS Count</label>
+                            <input type="number" class="form-control" id="coverageBTS" min="0" required>
+                        </div>
+                        <div class="mb-3">
+                            <label class="form-label">Population</label>
+                            <input type="number" class="form-control" id="coveragePop" min="0">
+                        </div>
+                        <div class="mb-3">
+                            <label class="form-label">Coverage %</label>
+                            <input type="number" class="form-control" id="coveragePercent" step="0.01" min="0" max="100">
+                        </div>
+                        <div class="row">
+                            <div class="col-md-6 mb-3">
+                                <label class="form-label">Latitude</label>
+                                <input type="number" class="form-control" id="coverageLat" step="0.0001">
+                            </div>
+                            <div class="col-md-6 mb-3">
+                                <label class="form-label">Longitude</label>
+                                <input type="number" class="form-control" id="coverageLng" step="0.0001">
+                            </div>
+                        </div>
+                    </form>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Close</button>
+                    <button type="button" class="btn btn-primary" onclick="saveCoverage()">Save</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Scripts -->
+    <script src="../assets/bootstrap/js/bootstrap.bundle.min.js"></script>
+    <script>
+        // Initialize admin panel
+        const API_URL = '../backend/routes';
+
+        async function adminLogout() {
+            try {
+                const res = await fetch(`${API_URL}/auth.php?action=logout`, {
+                    method: 'POST',
+                    credentials: 'include',
+                    headers: {'Content-Type': 'application/json'}
+                });
+                const json = await res.json();
+                if (json.success) {
+                    window.location.href = '../admin_login.html';
+                } else {
+                    alert('Logout failed');
+                }
+            } catch (e) {
+                alert('Logout error');
+            }
+        }
+
+        // Load initial data after auth
+        function loadInitialData() {
+            loadNews();
+            loadGrowth();
+            loadCoverage();
+        }
+
+        // NOTE: initial auth gating is handled by the load-event auth check below
+
+        // NEWS FUNCTIONS
+        function loadNews() {
+            // Admin view: request all news (requires session)
+            fetch(`${API_URL}/news.php?route=all&limit=100`, {credentials: 'include'})
+                .then(r => r.json())
+                .then(data => {
+                    let html = '';
+                    if (data.data && data.data.length > 0) {
+                        data.data.forEach(news => {
+                            const date = new Date(news.created_at).toLocaleDateString('id-ID');
+                            const badgeClass = news.status === 'published' ? 'badge-published' : 'badge-draft';
+                            html += `
+                                <tr>
+                                    <td><strong>${news.title}</strong></td>
+                                    <td>${news.category}</td>
+                                    <td><span class="badge ${badgeClass}">${news.status}</span></td>
+                                    <td>${date}</td>
+                                    <td>
+                                        <button class="btn btn-sm btn-warning" onclick="editNews(${news.id})">Edit</button>
+                                        <button class="btn btn-sm btn-danger" onclick="deleteNews(${news.id})">Delete</button>
+                                    </td>
+                                </tr>
+                            `;
+                        });
+                    } else {
+                        html = '<tr><td colspan="5" class="text-center text-muted">No news yet</td></tr>';
+                    }
+                    document.getElementById('newsTable').innerHTML = html;
+                })
+                .catch(err => {
+                    document.getElementById('newsTable').innerHTML = '<tr><td colspan="5" class="text-center text-danger">Error loading data</td></tr>';
+                });
+        }
+
+        function editCoverage(id) {
+            fetch(`${API_URL}/bts_coverage.php`, {credentials: 'include'})
+                .then(r => r.json())
+                .then(data => {
+                    if (data.data && Array.isArray(data.data)) {
+                        const item = data.data.find(i => i.id == id);
+                        if (item) {
+                            document.getElementById('coverageId').value = item.id;
+                            document.getElementById('coverageIsland').value = item.island_name;
+                            document.getElementById('coverageBTS').value = item.bts_count;
+                            document.getElementById('coveragePop').value = item.population;
+                            document.getElementById('coveragePercent').value = item.coverage_percentage;
+                            document.getElementById('coverageLat').value = item.latitude;
+                            document.getElementById('coverageLng').value = item.longitude;
+                            
+                            document.querySelector('#coverageModal .modal-title').textContent = 'Edit Coverage Area';
+                            
+                            const modalEl = document.getElementById('coverageModal');
+                            let modal = bootstrap.Modal.getInstance(modalEl);
+                            if (!modal) modal = new bootstrap.Modal(modalEl);
+                            modal.show();
+                        }
+                    }
+                })
+                .catch(err => console.error('Error loading coverage for edit:', err));
+        }
+
+        function saveNews() {
+            const id = document.getElementById('newsId').value;
+            const data = {
+                title: document.getElementById('newsTitle').value,
+                content: document.getElementById('newsContent').value,
+                category: document.getElementById('newsCategory').value,
+                image_url: document.getElementById('newsImage').value,
+                status: document.getElementById('newsStatus').value,
+                author_id: 1 // Default admin user
+            };
+
+            // Client-side validation
+            const errors = [];
+            if (!data.title || data.title.trim().length === 0) errors.push('Title is required');
+            if (!data.content || data.content.trim().length === 0) errors.push('Content is required');
+            if (!data.category || data.category.trim().length === 0) data.category = 'General';
+
+            const errorEl = document.getElementById('newsErrors');
+            if (errors.length > 0) {
+                errorEl.style.display = 'block';
+                errorEl.innerHTML = '<ul><li>' + errors.join('</li><li>') + '</li></ul>';
+                return;
+            } else {
+                errorEl.style.display = 'none';
+                errorEl.innerHTML = '';
+            }
+
+            const method = id ? 'PUT' : 'POST';
+            const endpoint = id ? `/news.php?route=${id}` : `/news.php?route=create`;
+
+            fetch(`${API_URL}${endpoint}`, {
+                method: method,
+                credentials: 'include',
+                headers: {'Content-Type': 'application/json'},
+                body: JSON.stringify(data)
+            })
+            .then(r => r.json())
+            .then(res => {
+                if (res.success) {
+                    document.getElementById('newsForm').reset();
+                    document.getElementById('newsId').value = '';
+                    bootstrap.Modal.getInstance(document.getElementById('newsModal')).hide();
+                    loadNews();
+                } else {
+                    // Show server-side validation errors nicely
+                    let serverErrors = [];
+                    if (res.errors && Array.isArray(res.errors)) serverErrors = res.errors;
+                    else if (res.error) serverErrors = [res.error];
+                    else serverErrors = ['Unknown server error'];
+
+                    errorEl.style.display = 'block';
+                    errorEl.innerHTML = '<ul><li>' + serverErrors.join('</li><li>') + '</li></ul>';
+                }
+            }).catch(err => {
+                errorEl.style.display = 'block';
+                errorEl.innerText = 'Network error: ' + err.message;
+            });
+        }
+
+        function editNews(id) {
+            // Fetch news by ID and populate modal for editing
+            fetch(`${API_URL}/news.php?route=${id}`, {credentials: 'include'})
+                .then(r => r.json())
+                .then(res => {
+                    if (res.success && res.data) {
+                        const news = res.data;
+                        document.getElementById('newsId').value = news.id;
+                        document.getElementById('newsTitle').value = news.title;
+                        document.getElementById('newsContent').value = news.content;
+                        document.getElementById('newsCategory').value = news.category;
+                        document.getElementById('newsImage').value = news.image_url || '';
+                        document.getElementById('newsStatus').value = news.status;
+                        const modalEl = document.getElementById('newsModal');
+                        const modal = new bootstrap.Modal(modalEl);
+                        modal.show();
+                    } else {
+                        alert('Unable to load news for edit: ' + (res.error || 'Unknown'));
+                    }
+                }).catch(err => {
+                    alert('Error loading news: ' + err.message);
+                });
+        }
+
+        function deleteNews(id) {
+            if (confirm('Are you sure?')) {
+                fetch(`${API_URL}/news.php?route=${id}`, {
+                    method: 'DELETE',
+                    credentials: 'include'
+                })
+                .then(r => r.json())
+                .then(res => {
+                    if (res.success) {
+                        alert('News deleted!');
+                        loadNews();
+                    }
+                });
+            }
+        }
+
+        // GROWTH FUNCTIONS
+        function loadGrowth() {
+            fetch(`${API_URL}/customer_growth.php`, {credentials: 'include'})
+                .then(r => {
+                    if (!r.ok) throw new Error(`HTTP ${r.status} ${r.statusText}`);
+                    return r.json();
+                })
+                .then(data => {
+                    console.log('Growth Data:', data); // Debugging
+                    let html = '';
+                    if (data.data && Array.isArray(data.data) && data.data.length > 0) {
+                        data.data.forEach(item => {
+                            html += `
+                                <tr>
+                                    <td>${item.year}</td>
+                                    <td>${Number(item.total_customers).toLocaleString()}</td>
+                                    <td>${item.growth_percentage ? Number(item.growth_percentage).toFixed(2) + '%' : '-'}</td>
+                                    <td>
+                                        <button class="btn btn-sm btn-danger" onclick="deleteGrowthData(${item.year})">Delete</button>
+                                    </td>
+                                </tr>
+                            `;
+                        });
+                    } else if (data.data && !Array.isArray(data.data)) {
+                        console.error('Growth data invalid format:', data);
+                        throw new Error('Data format invalid (not an array)');
+                    } else {
+                        html = '<tr><td colspan="4" class="text-center text-muted">No data available</td></tr>';
+                    }
+                    document.getElementById('growthTable').innerHTML = html;
+                })
+                .catch(err => {
+                    console.error('Growth load error:', err);
+                    document.getElementById('growthTable').innerHTML = `<tr><td colspan="4" class="text-center text-danger">Error: ${err.message}</td></tr>`;
+                });
+
+            fetch(`${API_URL}/customer_growth.php?type=analysis`, {credentials: 'include'})
+                .then(r => r.json())
+                .then(data => {
+                    if (data.data) {
+                        document.getElementById('growthSummary').innerHTML = `
+                            <p><strong>Period:</strong> ${data.data.period_start} - ${data.data.period_end}</p>
+                            <p><strong>Total Growth:</strong> ${Number(data.data.total_growth_percentage).toFixed(2)}%</p>
+                            <p><strong>Avg Annual:</strong> ${Number(data.data.average_annual_growth).toFixed(2)}%</p>
+                            <p><strong>Increase:</strong> ${Number(data.data.customer_increase).toLocaleString()} customers</p>
+                        `;
+                    }
+                })
+                .catch(err => {
+                    console.error('Growth summary error:', err);
+                    document.getElementById('growthSummary').innerHTML = `<span class="text-danger">Error: ${err.message}</span>`;
+                });
+        }
+
+        function saveGrowth() {
+            const data = {
+                year: parseInt(document.getElementById('growthYear').value),
+                total_customers: parseInt(document.getElementById('growthCustomers').value),
+                growth_percentage: document.getElementById('growthPercentage').value || null
+            };
+
+            fetch(`${API_URL}/customer_growth.php`, {
+                method: 'POST',
+                credentials: 'include',
+                headers: {'Content-Type': 'application/json'},
+                body: JSON.stringify(data)
+            })
+            .then(r => r.json())
+            .then(res => {
+                if (res.success) {
+                    alert('Growth data saved!');
+                    document.getElementById('growthForm').reset();
+                    bootstrap.Modal.getInstance(document.getElementById('growthModal')).hide();
+                    loadGrowth();
+                } else {
+                    alert('Error: ' + (res.error || 'Unknown error'));
+                }
+            });
+        }
+
+        function deleteGrowthData(year) {
+            if (confirm('Delete data for ' + year + '?')) {
+                fetch(`${API_URL}/customer_growth.php`, {
+                    method: 'DELETE',
+                    credentials: 'include',
+                    headers: {'Content-Type': 'application/json'},
+                    body: JSON.stringify({ year: year })
+                })
+                .then(r => r.json())
+                .then(res => {
+                    if (res.success) {
+                        loadGrowth();
+                    }
+                });
+            }
+        }
+
+        // COVERAGE FUNCTIONS
+        function loadCoverage() {
+            fetch(`${API_URL}/bts_coverage.php`, {credentials: 'include'})
+                .then(r => {
+                    if (!r.ok) throw new Error(`HTTP ${r.status} ${r.statusText}`);
+                    return r.json();
+                })
+                .then(data => {
+                    console.log('Coverage Data:', data); // Debugging
+                    let html = '';
+                    if (data.data && Array.isArray(data.data) && data.data.length > 0) {
+                        data.data.forEach(item => {
+                            html += `
+                                <tr>
+                                    <td>${item.island_name}</td>
+                                    <td>${Number(item.bts_count).toLocaleString()}</td>
+                                    <td>${item.population ? Number(item.population).toLocaleString() : '-'}</td>
+                                    <td>${item.coverage_percentage ? Number(item.coverage_percentage).toFixed(2) + '%' : '-'}</td>
+                                    <td>
+                                        <button class="btn btn-sm btn-warning" onclick="editCoverage(${item.id})">Edit</button>
+                                        <button class="btn btn-sm btn-danger" onclick="deleteCoverage(${item.id})">Delete</button>
+                                    </td>
+                                </tr>
+                            `;
+                        });
+                    } else if (data.data && !Array.isArray(data.data)) {
+                        console.error('Coverage data invalid format:', data);
+                        throw new Error('Data format invalid (not an array)');
+                    } else {
+                        html = '<tr><td colspan="5" class="text-center text-muted">No coverage data available</td></tr>';
+                    }
+                    document.getElementById('coverageTable').innerHTML = html;
+                })
+                .catch(err => {
+                    console.error('Coverage load error:', err);
+                    document.getElementById('coverageTable').innerHTML = `<tr><td colspan="5" class="text-center text-danger">Error: ${err.message}</td></tr>`;
+                });
+
+            fetch(`${API_URL}/bts_coverage.php?type=stats`, {credentials: 'include'})
+                .then(r => r.json())
+                .then(data => {
+                    if (data.data) {
+                        document.getElementById('totalIslands').textContent = data.data.total_islands;
+                        document.getElementById('totalBTS').textContent = data.data.total_bts;
+                        document.getElementById('avgBTS').textContent = Number(data.data.avg_bts_per_island).toFixed(0);
+                        document.getElementById('avgCoverage').textContent = Number(data.data.avg_coverage).toFixed(2) + '%';
+                    }
+                })
+                .catch(err => console.error('Stats error:', err));
+        }
+
+        function saveCoverage() {
+            const id = document.getElementById('coverageId').value;
+            const data = {
+                island_name: document.getElementById('coverageIsland').value,
+                bts_count: parseInt(document.getElementById('coverageBTS').value),
+                population: parseInt(document.getElementById('coveragePop').value) || 0,
+                coverage_percentage: parseFloat(document.getElementById('coveragePercent').value) || 0,
+                latitude: parseFloat(document.getElementById('coverageLat').value) || 0,
+                longitude: parseFloat(document.getElementById('coverageLng').value) || 0
+            };
+
+            if (id) data.id = parseInt(id);
+
+            const method = id ? 'PUT' : 'POST';
+            fetch(`${API_URL}/bts_coverage.php`, {
+                method: method,
+                credentials: 'include',
+                headers: {'Content-Type': 'application/json'},
+                body: JSON.stringify(data)
+            })
+            .then(r => r.json())
+            .then(res => {
+                if (res.success) {
+                    alert('Coverage data saved!');
+                    document.getElementById('coverageForm').reset();
+                    document.getElementById('coverageId').value = '';
+                    bootstrap.Modal.getInstance(document.getElementById('coverageModal')).hide();
+                    loadCoverage();
+                } else {
+                    alert('Error: ' + (res.error || 'Unknown error'));
+                }
+            });
+        }
+
+        function deleteCoverage(id) {
+            if (confirm('Are you sure?')) {
+                fetch(`${API_URL}/bts_coverage.php`, {
+                    method: 'DELETE',
+                    credentials: 'include',
+                    headers: {'Content-Type': 'application/json'},
+                    body: JSON.stringify({ id: id })
+                })
+                .then(r => r.json())
+                .then(res => {
+                    if (res.success) {
+                        loadCoverage();
+                    }
+                });
+            }
+        }
+
+        // Text editor formatting
+        function formatText(command) {
+            document.execCommand(command, false, null);
+            document.getElementById('newsContent').focus();
+        }
+
+        // Clear modals on open
+        document.getElementById('newsModal')?.addEventListener('show.bs.modal', function() {
+            document.getElementById('newsForm').reset();
+            document.getElementById('newsId').value = '';
+            document.getElementById('newsModalTitle').textContent = 'Create News Article';
+            const errorEl = document.getElementById('newsErrors');
+            if (errorEl) { errorEl.style.display = 'none'; errorEl.innerHTML = ''; }
+        });
+
+        document.getElementById('growthModal')?.addEventListener('show.bs.modal', function() {
+            document.getElementById('growthForm').reset();
+        });
+
+        document.getElementById('coverageModal')?.addEventListener('show.bs.modal', function(event) {
+            if (event.relatedTarget) {
+                document.getElementById('coverageForm').reset();
+                document.getElementById('coverageId').value = '';
+                document.querySelector('#coverageModal .modal-title').textContent = 'Add Coverage Area';
+            }
+        });
+    </script>
+    </div><!-- End adminContent -->
+
+    <!-- Auth check script (runs before page loads) -->
+    <script>
+        // Check authentication on page load
+        window.addEventListener('load', function() {
+            // Start auth check but don't block the UI for too long.
+            const overlay = document.getElementById('authLoadingOverlay');
+            const content = document.getElementById('adminContent');
+            const pendingBanner = document.getElementById('authPendingBanner');
+
+            let resolved = false;
+
+            // After short delay, reveal UI and show a non-blocking pending banner
+            const revealTimeout = setTimeout(() => {
+                if (!resolved) {
+                    overlay.style.display = 'none';
+                    content.style.display = 'block';
+                    pendingBanner.style.display = 'block';
+                }
+            }, 700);
+
+            fetch(`${API_URL}/auth.php?action=status`, {
+                credentials: 'include'
+            })
+            .then(r => r.json())
+            .then(data => {
+                resolved = true;
+                clearTimeout(revealTimeout);
+                if (data.loggedIn && data.isAdmin) {
+                    // authenticated — ensure UI visible and remove banner
+                    overlay.style.display = 'none';
+                    content.style.display = 'block';
+                    pendingBanner.style.display = 'none';
+                    loadInitialData();
+                } else {
+                    // not authenticated — redirect immediately
+                    window.location.href = '../admin_login.html';
+                }
+            })
+            .catch(err => {
+                console.error('Auth check failed:', err);
+                resolved = true;
+                clearTimeout(revealTimeout);
+                // On network error, redirect to login to be safe
+                window.location.href = '../admin_login.html';
+            });
+        });
+    </script>
+</body>
+</html>

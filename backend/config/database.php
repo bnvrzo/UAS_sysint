@@ -8,7 +8,11 @@ class Database {
     private $host = 'localhost';
     private $db_name = 'towerindo_db';
     private $user = 'root';
+<<<<<<< HEAD
     private $password = 'anya110423';
+=======
+    private $password = '';
+>>>>>>> uas-mantap
     private $conn;
 
     // XML Storage Path

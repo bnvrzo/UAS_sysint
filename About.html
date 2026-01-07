@@ -21,6 +21,205 @@
   <link rel="preload" href="https://fonts.googleapis.com/css?family=Inter+Tight:100,200,300,400,500,600,700,800,900,100i,200i,300i,400i,500i,600i,700i,800i,900i&display=swap" as="style" onload="this.onload=null;this.rel='stylesheet'">
   <noscript><link rel="stylesheet" href="https://fonts.googleapis.com/css?family=Inter+Tight:100,200,300,400,500,600,700,800,900,100i,200i,300i,400i,500i,600i,700i,800i,900i&display=swap"></noscript>
   <link rel="preload" as="style" href="assets/mobirise/css/mbr-additional.css"><link rel="stylesheet" href="assets/mobirise/css/mbr-additional.css" type="text/css">
+  <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+  <!-- IMPORTANT: Replace the API key below with your valid Google Maps API key. -->
+  <script async defer src="https://maps.googleapis.com/maps/api/js?key=AIzaSyAu5t6tHhLNrKHDaTVJFBfvT5OgyX7vZQs&callback=initMap"></script>
+  <script>
+    // Bridge function: Google Maps will call initMap when the API is ready.
+    // This safely defers to our `loadCoverageMap()` implementation whether
+    // it's already defined or will be defined later in the page.
+    function initMap() {
+      if (typeof loadCoverageMap === 'function') {
+        loadCoverageMap();
+      } else {
+        document.addEventListener('DOMContentLoaded', function() {
+          if (typeof loadCoverageMap === 'function') loadCoverageMap();
+        });
+      }
+    }
+  </script>
+  <!-- Leaflet (fallback if Google Maps API fails or no key) -->
+  <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" crossorigin=""/>
+  <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js" crossorigin=""></script>
+  <style>
+    .growth-section {
+      background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+      padding: 60px 20px;
+      color: white;
+      margin: 40px 0;
+      border-radius: 15px;
+    }
+    
+    .growth-container {
+      max-width: 1000px;
+      margin: 0 auto;
+    }
+    
+    .growth-title {
+      font-size: 2.5rem;
+      font-weight: bold;
+      margin-bottom: 10px;
+      text-align: center;
+    }
+    
+    .growth-subtitle {
+      font-size: 1.1rem;
+      opacity: 0.9;
+      text-align: center;
+      margin-bottom: 40px;
+    }
+    
+    .chart-wrapper {
+      background: rgba(255, 255, 255, 0.95);
+      padding: 30px;
+      border-radius: 10px;
+      box-shadow: 0 10px 40px rgba(0, 0, 0, 0.2);
+      margin-bottom: 30px;
+    }
+    
+    .stats-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+      gap: 20px;
+      margin-top: 30px;
+    }
+    
+    .stat-card {
+      background: rgba(255, 255, 255, 0.1);
+      padding: 20px;
+      border-radius: 10px;
+      border: 2px solid rgba(255, 255, 255, 0.3);
+      text-align: center;
+    }
+    
+    .stat-number {
+      font-size: 2rem;
+      font-weight: bold;
+      margin: 10px 0;
+    }
+    
+    .stat-label {
+      font-size: 0.9rem;
+      opacity: 0.8;
+    }
+    
+    .coverage-section {
+      background: #f8f9fa;
+      padding: 60px 20px;
+      margin: 40px 0;
+      border-radius: 15px;
+    }
+    
+    .coverage-title {
+      font-size: 2.5rem;
+      font-weight: bold;
+      margin-bottom: 10px;
+      text-align: center;
+      color: #333;
+    }
+    
+    .coverage-subtitle {
+      font-size: 1.1rem;
+      color: #666;
+      text-align: center;
+      margin-bottom: 40px;
+    }
+    
+    .map-wrapper {
+      background: white;
+      padding: 30px;
+      border-radius: 10px;
+      box-shadow: 0 10px 40px rgba(0, 0, 0, 0.1);
+      margin-bottom: 30px;
+    }
+    
+    #coverageMap {
+      width: 100%;
+      height: 500px;
+      border-radius: 10px;
+    }
+    
+    .coverage-stats {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+      gap: 20px;
+      margin-top: 30px;
+    }
+    
+    .coverage-card {
+      background: white;
+      padding: 20px;
+      border-radius: 10px;
+      box-shadow: 0 4px 15px rgba(0, 0, 0, 0.1);
+      text-align: center;
+      border-left: 4px solid #667eea;
+    }
+    
+    .coverage-card h5 {
+      color: #667eea;
+      font-weight: bold;
+      margin-bottom: 10px;
+    }
+    
+    .coverage-card .number {
+      font-size: 2rem;
+      font-weight: bold;
+      color: #333;
+    }
+    
+    .island-list {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+      gap: 15px;
+      margin-top: 20px;
+    }
+    
+    .island-item {
+      background: white;
+      padding: 15px;
+      border-radius: 8px;
+      border: 1px solid #ddd;
+    }
+    
+    .island-name {
+      font-weight: bold;
+      color: #333;
+      margin-bottom: 8px;
+    }
+    
+    .island-info {
+      font-size: 0.9rem;
+      color: #666;
+      margin: 5px 0;
+    }
+    
+    .progress-bar-container {
+      background: #e9ecef;
+      height: 8px;
+      border-radius: 4px;
+      margin-top: 8px;
+      overflow: hidden;
+    }
+    
+    .progress-fill {
+      background: linear-gradient(90deg, #667eea 0%, #764ba2 100%);
+      height: 100%;
+      border-radius: 4px;
+      transition: width 0.3s ease;
+    }
+      .coverage-perc-tooltip {
+        background: transparent !important;
+        color: #fff !important;
+        font-weight: 700 !important;
+        text-shadow: 0 1px 2px rgba(0,0,0,0.6) !important;
+        padding: 0 !important;
+        border: none !important;
+      }
+    /* Hide Google Maps error overlay if API key is invalid */
+    #coverageMap .gm-err-container,
+    #coverageMap .gm-err-content,
+    #coverageMap .gm-err-icon { display: none !important; }
+  </style>
 
   
   
@@ -85,6 +284,75 @@
           PT Towerindo is a trusted, independent telecommunication infrastructure provider committed to connecting Indonesia from Sabang to Merauke. With a growing portfolio of more than 8,000 macro towers, small cells, and fiber-backed sites nationwide, we deliver end-to-end solutions including Build-to-Suit tower development, multi-operator colocation, 24/7 operations &amp; maintenance, in-building coverage, and future-ready 5G infrastructure. Driven by engineering excellence, safety-first principles, and strong partnerships with all major operators and enterprises, we empower faster, more reliable, and more affordable connectivity for millions of Indonesians while ensuring the highest standards of quality, reliability, and environmental responsibility.
         </p>
         
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- Customer Growth Section -->
+<section class="growth-section">
+  <div class="growth-container">
+    <div class="growth-title">Customer Growth (2020 - 2025)</div>
+    <div class="growth-subtitle">Tracking our remarkable expansion over the years</div>
+    
+    <div class="chart-wrapper">
+      <canvas id="growthChart"></canvas>
+    </div>
+    
+    <div class="stats-grid">
+      <div class="stat-card">
+        <div class="stat-label">2025 Total Customers</div>
+        <div class="stat-number" id="stat-2025">35,000</div>
+      </div>
+      <div class="stat-card">
+        <div class="stat-label">Total Growth 2020-2025</div>
+        <div class="stat-number" id="stat-growth">600%</div>
+      </div>
+      <div class="stat-card">
+        <div class="stat-label">Average Annual Growth</div>
+        <div class="stat-number" id="stat-avg">44.4%</div>
+      </div>
+      <div class="stat-card">
+        <div class="stat-label">Customer Increase</div>
+        <div class="stat-number" id="stat-increase">30,000</div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- BTS Coverage Section -->
+<section class="coverage-section">
+  <div class="container-fluid" style="max-width: 1100px; margin: 0 auto;">
+    <div class="coverage-title">BTS Coverage Area Across Indonesia</div>
+    <div class="coverage-subtitle">Our expanding network reaches major islands with cutting-edge infrastructure</div>
+    
+    <div class="map-wrapper">
+      <div id="coverageMap"></div>
+    </div>
+    
+    <div class="coverage-stats">
+      <div class="coverage-card">
+        <h5><i class="bi bi-house"></i> Total Islands</h5>
+        <div class="number" id="coverage-islands">8</div>
+      </div>
+      <div class="coverage-card">
+        <h5><i class="bi bi-tower"></i> Total BTS</h5>
+        <div class="number" id="coverage-bts">8,070</div>
+      </div>
+      <div class="coverage-card">
+        <h5><i class="bi bi-graph-up"></i> Avg BTS/Island</h5>
+        <div class="number" id="coverage-avg">1,009</div>
+      </div>
+      <div class="coverage-card">
+        <h5><i class="bi bi-percent"></i> Avg Coverage</h5>
+        <div class="number" id="coverage-percent">75.1%</div>
+      </div>
+    </div>
+    
+    <div style="margin-top: 40px;">
+      <h5 style="color: #333; margin-bottom: 20px; font-weight: bold;">Coverage by Island:</h5>
+      <div class="island-list" id="islandList">
+        <!-- Dynamically populated -->
       </div>
     </div>
   </div>
@@ -172,6 +440,425 @@
         </div>
     </div>
 </section><section class="display-7" style="padding: 0;align-items: center;justify-content: center;flex-wrap: wrap;    align-content: center;display: flex;position: relative;height: 4rem;"><a href="https://mobiri.se/4363774" style="flex: 1 1;height: 4rem;position: absolute;width: 100%;z-index: 1;"><img alt="" style="height: 4rem;" src="data:image/gif;base64,R0lGODlhAQABAIAAAP///wAAACH5BAEAAAAALAAAAAABAAEAAAICRAEAOw=="></a><p style="margin: 0;text-align: center;" class="display-7">&#8204;</p><a style="z-index:1" href="https://mobirise.com/builder/no-code-website-builder.html">No Code Website Builder</a></section><script src="assets/bootstrap/js/bootstrap.bundle.min.js"></script>  <script src="assets/smoothscroll/smooth-scroll.js"></script>  <script src="assets/ytplayer/index.js"></script>  <script src="assets/dropdown/js/navbar-dropdown.js"></script>  <script src="assets/theme/js/script.js"></script>  
+
+<script>
+// Initialize charts and maps on page load
+document.addEventListener('DOMContentLoaded', function() {
+  loadGrowthChart();
+  // `loadCoverageMap()` will be invoked by the Google Maps API callback `initMap()`
+  // when the Maps script finishes loading. See top of file for the initMap bridge.
+});
+
+// Load Customer Growth Chart
+function loadGrowthChart() {
+  fetch('backend/routes/customer_growth.php?type=chart')
+    .then(r => r.json())
+    .then(data => {
+      if (data.success && data.data) {
+        const chartData = data.data;
+        
+        // Create chart
+        const ctx = document.getElementById('growthChart').getContext('2d');
+        
+        const chart = new Chart(ctx, {
+          type: 'line',
+          data: {
+            labels: chartData.labels,
+            datasets: [
+              {
+                label: 'Total Customers',
+                data: chartData.customers,
+                borderColor: '#667eea',
+                backgroundColor: 'rgba(102, 126, 234, 0.1)',
+                borderWidth: 3,
+                fill: true,
+                tension: 0.4,
+                pointRadius: 6,
+                pointBackgroundColor: '#667eea',
+                pointBorderColor: '#fff',
+                pointBorderWidth: 2,
+                pointHoverRadius: 8
+              },
+              {
+                label: 'Growth %',
+                data: chartData.growth,
+                borderColor: '#764ba2',
+                backgroundColor: 'rgba(118, 75, 162, 0.1)',
+                borderWidth: 2,
+                fill: false,
+                tension: 0.4,
+                pointRadius: 5,
+                pointBackgroundColor: '#764ba2',
+                yAxisID: 'y1'
+              }
+            ]
+          },
+          options: {
+            responsive: true,
+            maintainAspectRatio: true,
+            interaction: {
+              mode: 'index',
+              intersect: false
+            },
+            plugins: {
+              legend: {
+                display: true,
+                position: 'top',
+                labels: {
+                  font: { size: 14, weight: 'bold' },
+                  padding: 20
+                }
+              },
+              tooltip: {
+                backgroundColor: 'rgba(0, 0, 0, 0.8)',
+                padding: 12,
+                titleFont: { size: 14 },
+                bodyFont: { size: 13 }
+              }
+            },
+            scales: {
+              y: {
+                type: 'linear',
+                display: true,
+                position: 'left',
+                title: {
+                  display: true,
+                  text: 'Total Customers',
+                  font: { size: 12, weight: 'bold' }
+                },
+                ticks: {
+                  callback: function(value) {
+                    return value.toLocaleString();
+                  }
+                }
+              },
+              y1: {
+                type: 'linear',
+                display: true,
+                position: 'right',
+                title: {
+                  display: true,
+                  text: 'Growth %',
+                  font: { size: 12, weight: 'bold' }
+                },
+                grid: {
+                  drawOnChartArea: false
+                },
+                ticks: {
+                  callback: function(value) {
+                    return value.toFixed(1) + '%';
+                  }
+                }
+              }
+            }
+          }
+        });
+        
+        // Update stats
+        const lastYear = chartData.customers[chartData.customers.length - 1];
+        const firstYear = chartData.customers[0];
+        const totalGrowth = ((lastYear - firstYear) / firstYear * 100).toFixed(1);
+        const avgGrowth = (chartData.growth.reduce((a, b) => a + b, 0) / (chartData.growth.length - 1)).toFixed(1);
+        
+        document.getElementById('stat-2025').textContent = lastYear.toLocaleString();
+        document.getElementById('stat-growth').textContent = totalGrowth + '%';
+        document.getElementById('stat-avg').textContent = avgGrowth + '%';
+        document.getElementById('stat-increase').textContent = (lastYear - firstYear).toLocaleString();
+      }
+    });
+}
+
+// Load BTS Coverage Map
+let map;
+let markers = [];
+
+function loadCoverageMap() {
+  // Remove any existing Google Maps error overlay before rendering
+  const gmErrExisting = document.getElementById('coverageMap')?.querySelector('.gm-err-container');
+  if (gmErrExisting) gmErrExisting.remove();
+
+  // Fetch coverage data first, then initialize appropriate map renderer
+  fetch('backend/routes/bts_coverage.php?type=map')
+    .then(r => r.json())
+    .then(data => {
+      if (data.success && data.data) {
+        const mapData = data.data;
+        let islandHTML = '';
+
+        // Leaflet-first renderer: if Leaflet is available, use it immediately
+        function renderLeaflet(mapData) {
+          const mapContainer = document.getElementById('coverageMap');
+          const gmErr = mapContainer.querySelector('.gm-err-container');
+          if (gmErr) gmErr.remove();
+          mapContainer.innerHTML = '';
+
+          const leafletMap = L.map('coverageMap', { preferCanvas: true }).setView([-2, 113], 5);
+          L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+            maxZoom: 18,
+            attribution: '&copy; OpenStreetMap contributors'
+          }).addTo(leafletMap);
+
+          mapData.forEach(island => {
+            const radius = Math.max(4000, Math.sqrt(Number(island.bts_count) || 1) * 12000);
+            const circle = L.circle([island.lat, island.lng], {
+              color: '#764ba2',
+              fillColor: '#667eea',
+              fillOpacity: 0.5,
+              radius: radius
+            }).addTo(leafletMap);
+
+            const popup = `<div style="padding:10px;font-family:Arial;">
+              <h5 style="margin:0 0 8px;color:#667eea;">${island.name}</h5>
+              <p style="margin:4px 0;"><strong>BTS:</strong> ${island.bts_count}</p>
+              <p style="margin:4px 0;"><strong>Population:</strong> ${island.population ? Number(island.population).toLocaleString() : 'N/A'}</p>
+              <p style="margin:4px 0;"><strong>Coverage:</strong> ${Number(island.coverage).toFixed(2)}%</p>
+            </div>`;
+
+            circle.bindPopup(popup);
+
+            // show coverage percent inside the circle (Leaflet)
+            try {
+              circle.bindTooltip(`${Number(island.coverage).toFixed(1)}%`, { permanent: true, direction: 'center', className: 'coverage-perc-tooltip' });
+            } catch(e) {}
+
+            const progressPercent = island.coverage;
+            islandHTML += `
+              <div class="island-item">
+                <div class="island-name">${island.name}</div>
+                <div class="island-info"><i class="bi bi-tower"></i> BTS: <strong>${island.bts_count}</strong></div>
+                <div class="island-info"><i class="bi bi-people"></i> Pop: <strong>${island.population ? Number(island.population).toLocaleString() : 'N/A'}</strong></div>
+                <div class="island-info"><i class="bi bi-percent"></i> Coverage: <strong>${Number(island.coverage).toFixed(2)}%</strong></div>
+                <div class="progress-bar-container">
+                  <div class="progress-fill" style="width: ${progressPercent}%"></div>
+                </div>
+              </div>
+            `;
+          });
+
+          // (removed GeoJSON rectangle overlay per user request)
+
+          setTimeout(() => { try { leafletMap.invalidateSize(); } catch(e){} }, 300);
+          document.getElementById('islandList').innerHTML = islandHTML;
+        }
+
+        if (typeof L !== 'undefined') {
+          renderLeaflet(mapData);
+          return;
+        }
+
+        // Try Google Maps first; if it fails, fall back to Leaflet
+        let usedGoogle = false;
+        if (typeof google === 'object' && google.maps) {
+          try {
+            map = new google.maps.Map(document.getElementById('coverageMap'), {
+              zoom: 5,
+              center: { lat: -2, lng: 113 }
+            });
+
+            mapData.forEach(island => {
+              const marker = new google.maps.Marker({
+                position: { lat: island.lat, lng: island.lng },
+                map: map,
+                title: island.name,
+                icon: {
+                  path: google.maps.SymbolPath.CIRCLE,
+                  scale: Math.max(6, Math.log(Math.max(1, island.bts_count)) * 2),
+                  fillColor: '#667eea',
+                  fillOpacity: 0.6,
+                  strokeColor: '#764ba2',
+                  strokeWeight: 2
+                }
+              });
+
+              const infoWindow = new google.maps.InfoWindow({
+                content: `<div style="padding: 10px; font-family: Arial;">
+                  <h5 style="margin: 0 0 10px; color: #667eea;">${island.name}</h5>
+                  <p style="margin: 5px 0;"><strong>BTS:</strong> ${island.bts_count}</p>
+                  <p style="margin: 5px 0;"><strong>Population:</strong> ${island.population ? Number(island.population).toLocaleString() : 'N/A'}</p>
+                  <p style="margin: 5px 0;"><strong>Coverage:</strong> ${Number(island.coverage).toFixed(2)}%</p>
+                </div>`
+              });
+
+              marker.addListener('click', () => infoWindow.open(map, marker));
+              markers.push(marker);
+
+              const progressPercent = island.coverage;
+              islandHTML += `
+                <div class="island-item">
+                  <div class="island-name">${island.name}</div>
+                  <div class="island-info"><i class="bi bi-tower"></i> BTS: <strong>${island.bts_count}</strong></div>
+                  <div class="island-info"><i class="bi bi-people"></i> Pop: <strong>${island.population ? Number(island.population).toLocaleString() : 'N/A'}</strong></div>
+                  <div class="island-info"><i class="bi bi-percent"></i> Coverage: <strong>${Number(island.coverage).toFixed(2)}%</strong></div>
+                  <div class="progress-bar-container">
+                    <div class="progress-fill" style="width: ${progressPercent}%"></div>
+                  </div>
+                </div>
+              `;
+            });
+
+            usedGoogle = true;
+          } catch (gErr) {
+            console.error('Google Maps init failed, falling back to Leaflet:', gErr);
+            // remove potential error overlay
+            const gmErr = document.getElementById('coverageMap')?.querySelector('.gm-err-container');
+            if (gmErr) gmErr.remove();
+          }
+        }
+
+        if (!usedGoogle && typeof L !== 'undefined') {
+          // Leaflet fallback: remove any Google Maps error overlays and clear container
+          const mapContainer = document.getElementById('coverageMap');
+          // Remove Google Maps error overlay if present
+          const gmErr = mapContainer.querySelector('.gm-err-container');
+          if (gmErr) gmErr.remove();
+          // Clear any inner HTML produced by failed Google API
+          mapContainer.innerHTML = '';
+
+          // Initialize Leaflet map
+          const leafletMap = L.map('coverageMap', { preferCanvas: true }).setView([-2, 113], 5);
+          L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+            maxZoom: 18,
+            attribution: '&copy; OpenStreetMap contributors'
+          }).addTo(leafletMap);
+
+          mapData.forEach(island => {
+            const radius = Math.max(4000, Math.sqrt(Number(island.bts_count) || 1) * 12000);
+            const circle = L.circle([island.lat, island.lng], {
+              color: '#764ba2',
+              fillColor: '#667eea',
+              fillOpacity: 0.5,
+              radius: radius
+            }).addTo(leafletMap);
+
+            const popup = `<div style="padding:10px;font-family:Arial;">
+              <h5 style="margin:0 0 8px;color:#667eea;">${island.name}</h5>
+              <p style="margin:4px 0;"><strong>BTS:</strong> ${island.bts_count}</p>
+              <p style="margin:4px 0;"><strong>Population:</strong> ${island.population ? Number(island.population).toLocaleString() : 'N/A'}</p>
+              <p style="margin:4px 0;"><strong>Coverage:</strong> ${Number(island.coverage).toFixed(2)}%</p>
+            </div>`;
+
+            circle.bindPopup(popup);
+
+            // show coverage percent inside the circle (Leaflet)
+            try {
+              circle.bindTooltip(`${Number(island.coverage).toFixed(1)}%`, { permanent: true, direction: 'center', className: 'coverage-perc-tooltip' });
+            } catch(e) {}
+
+            const progressPercent = island.coverage;
+            islandHTML += `
+              <div class="island-item">
+                <div class="island-name">${island.name}</div>
+                <div class="island-info"><i class="bi bi-tower"></i> BTS: <strong>${island.bts_count}</strong></div>
+                <div class="island-info"><i class="bi bi-people"></i> Pop: <strong>${island.population ? Number(island.population).toLocaleString() : 'N/A'}</strong></div>
+                <div class="island-info"><i class="bi bi-percent"></i> Coverage: <strong>${Number(island.coverage).toFixed(2)}</strong></div>
+                <div class="progress-bar-container">
+                  <div class="progress-fill" style="width: ${progressPercent}%"></div>
+                </div>
+              </div>
+            `;
+          });
+
+          // Load GeoJSON island shapes (simplified) and style
+          fetch('assets/data/indonesia_islands.geojson')
+            .then(r => r.json())
+            .then(geo => {
+              const layer = L.geoJSON(geo, {
+                style: function(feature) {
+                  return { color: '#2b3a67', weight: 1.5, fillColor: '#e6eef8', fillOpacity: 0.5 };
+                }
+              }).addTo(leafletMap);
+              try { leafletMap.fitBounds(layer.getBounds(), { padding: [40, 40] }); } catch(e){}
+            })
+            .catch(()=>{});
+
+          // Ensure tiles render correctly
+          setTimeout(() => { try { leafletMap.invalidateSize(); } catch(e){} }, 300);
+        } else {
+          // Neither Google Maps nor Leaflet available — render a simple SVG plot as fallback
+          const mapContainer = document.getElementById('coverageMap');
+          mapContainer.innerHTML = '';
+          const svgNS = 'http://www.w3.org/2000/svg';
+          const svg = document.createElementNS(svgNS, 'svg');
+          svg.setAttribute('width', '100%');
+          svg.setAttribute('height', '100%');
+          svg.setAttribute('viewBox', '0 0 1200 600');
+          svg.style.borderRadius = '10px';
+          svg.style.background = 'linear-gradient(#eef2f6, #f8fafc)';
+
+          // compute bounding box for lat/lng
+          const lats = mapData.map(i => Number(i.lat));
+          const lngs = mapData.map(i => Number(i.lng));
+          const minLat = Math.min(...lats); const maxLat = Math.max(...lats);
+          const minLng = Math.min(...lngs); const maxLng = Math.max(...lngs);
+
+          const padding = 60; // padding inside viewBox
+          const w = 1200 - padding * 2;
+          const h = 600 - padding * 2;
+
+          mapData.forEach(island => {
+            const lat = Number(island.lat);
+            const lng = Number(island.lng);
+            // normalize
+            const nx = (lng - minLng) / (maxLng - minLng || 1);
+            const ny = (lat - minLat) / (maxLat - minLat || 1);
+            const x = Math.round(padding + nx * w);
+            const y = Math.round(padding + (1 - ny) * h); // invert lat to y
+
+            const r = Math.max(6, Math.log(Number(island.bts_count) || 1) * 6);
+
+            const circle = document.createElementNS(svgNS, 'circle');
+            circle.setAttribute('cx', x);
+            circle.setAttribute('cy', y);
+            circle.setAttribute('r', r);
+            circle.setAttribute('fill', '#667eea');
+            circle.setAttribute('fill-opacity', '0.75');
+            circle.setAttribute('stroke', '#764ba2');
+            circle.setAttribute('stroke-width', '1.5');
+
+            const title = document.createElementNS(svgNS, 'title');
+            title.textContent = `${island.name} — BTS: ${island.bts_count}\nPopulation: ${island.population || 'N/A'}\nCoverage: ${Number(island.coverage).toFixed(2)}%`;
+            circle.appendChild(title);
+
+            svg.appendChild(circle);
+
+            // add percentage label inside circle (SVG fallback)
+            const txtPerc = document.createElementNS(svgNS, 'text');
+            txtPerc.setAttribute('x', x);
+            txtPerc.setAttribute('y', y + 3);
+            txtPerc.setAttribute('font-size', Math.max(12, Math.round(r * 0.5)));
+            txtPerc.setAttribute('fill', '#ffffff');
+            txtPerc.setAttribute('text-anchor', 'middle');
+            txtPerc.setAttribute('dominant-baseline', 'middle');
+            txtPerc.setAttribute('font-weight', '700');
+            txtPerc.textContent = `${Number(island.coverage).toFixed(0)}%`;
+            svg.appendChild(txtPerc);
+          });
+
+          mapContainer.appendChild(svg);
+        }
+
+        document.getElementById('islandList').innerHTML = islandHTML;
+      }
+    })
+    .catch(err => {
+      console.error('Error fetching BTS coverage map data:', err);
+      document.getElementById('coverageMap').innerHTML = '<div style="padding:40px;text-align:center;color:red;">Failed to load coverage data.</div>';
+    });
+
+  // Load coverage statistics
+  fetch('backend/routes/bts_coverage.php?type=stats')
+    .then(r => r.json())
+    .then(data => {
+      if (data.success && data.data) {
+        const stats = data.data;
+        document.getElementById('coverage-islands').textContent = stats.total_islands;
+        document.getElementById('coverage-bts').textContent = stats.total_bts.toLocaleString();
+        document.getElementById('coverage-avg').textContent = Math.round(stats.avg_bts_per_island).toLocaleString();
+        document.getElementById('coverage-percent').textContent = stats.avg_coverage.toFixed(1) + '%';
+      }
+    });
+}
+</script>
   
   
   <input name="animation" type="hidden">

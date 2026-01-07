@@ -1,0 +1,225 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Setup Database - Towerindo</title>
+    <link rel="stylesheet" href="assets/bootstrap/css/bootstrap.min.css">
+    <style>
+        body {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-family: 'Inter Tight', sans-serif;
+        }
+        
+        .setup-container {
+            background: white;
+            border-radius: 15px;
+            box-shadow: 0 20px 60px rgba(0, 0, 0, 0.3);
+            max-width: 600px;
+            width: 100%;
+            padding: 40px;
+        }
+        
+        .setup-title {
+            color: #667eea;
+            margin-bottom: 30px;
+            text-align: center;
+        }
+        
+        .setup-section {
+            margin: 30px 0;
+        }
+        
+        .setup-section h4 {
+            color: #333;
+            margin-bottom: 15px;
+            font-weight: bold;
+        }
+        
+        .code-block {
+            background: #f5f5f5;
+            border-left: 4px solid #667eea;
+            padding: 15px;
+            margin: 10px 0;
+            border-radius: 5px;
+            font-family: 'Courier New', monospace;
+            font-size: 0.9rem;
+            overflow-x: auto;
+        }
+        
+        .status {
+            padding: 15px;
+            border-radius: 5px;
+            margin: 10px 0;
+        }
+        
+        .status.success {
+            background: #d4edda;
+            color: #155724;
+            border: 1px solid #c3e6cb;
+        }
+        
+        .status.error {
+            background: #f8d7da;
+            color: #721c24;
+            border: 1px solid #f5c6cb;
+        }
+        
+        .btn-setup {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            border: none;
+            padding: 12px 30px;
+            font-weight: bold;
+            border-radius: 5px;
+            cursor: pointer;
+            width: 100%;
+            margin-top: 20px;
+        }
+        
+        .btn-setup:hover {
+            opacity: 0.9;
+        }
+    </style>
+</head>
+<body>
+    <div class="setup-container">
+        <h1 class="setup-title">🚀 Setup Towerindo Database</h1>
+        
+        <div class="setup-section">
+            <h4>1️⃣ Pastikan MySQL Server Running</h4>
+            <p>Untuk macOS dengan XAMPP:</p>
+            <div class="code-block">/Applications/XAMPP/bin/mysql.server start</div>
+            <p style="margin-top: 10px;">Atau buka XAMPP Control Panel dan klik "Start" pada MySQL.</p>
+        </div>
+
+        <div class="setup-section">
+            <h4>2️⃣ Setup Database</h4>
+            <p>Copy SQL script berikut ke MySQL:</p>
+            <div class="code-block" style="max-height: 300px; overflow-y: auto;">
+<?php
+// Display database.sql content
+$sql_file = __DIR__ . '/backend/config/database.sql';
+if (file_exists($sql_file)) {
+    echo htmlspecialchars(file_get_contents($sql_file));
+} else {
+    echo "File database.sql tidak ditemukan!";
+}
+?>
+            </div>
+            
+            <p style="margin-top: 15px;">Atau gunakan command:</p>
+            <div class="code-block">
+mysql -u root < backend/config/database.sql
+            </div>
+        </div>
+
+        <div class="setup-section">
+            <h4>3️⃣ Buat Folder Storage</h4>
+            <p>Folder ini diperlukan untuk menyimpan XML backup:</p>
+            <div class="code-block">
+mkdir -p storage/xml
+chmod 755 storage/xml
+            </div>
+        </div>
+
+        <div class="setup-section">
+            <h4>4️⃣ Verifikasi Konfigurasi Database</h4>
+            <p>Edit file <code>backend/config/database.php</code> jika diperlukan:</p>
+            <div class="code-block">
+$host = 'localhost';
+$db_name = 'towerindo_db';
+$user = 'root';
+$password = '';
+            </div>
+        </div>
+
+        <div class="setup-section">
+            <h4>5️⃣ Setup Selesai!</h4>
+            <p>Akses halaman berikut:</p>
+            <ul>
+                <li><a href="Index.html" target="_blank">Homepage</a></li>
+                <li><a href="admin/" target="_blank">Admin Panel</a></li>
+                <li><a href="News.php" target="_blank">News Page</a></li>
+                <li><a href="About.html" target="_blank">About Us (dengan Grafik & Peta)</a></li>
+            </ul>
+        </div>
+
+        <div class="setup-section">
+            <h4>📋 Default Login Admin</h4>
+            <div class="status success">
+                <strong>Username:</strong> admin<br>
+                <strong>Email:</strong> admin@towerindo.com<br>
+                <strong>Role:</strong> Administrator<br>
+                <em style="font-size: 0.85rem;">Password di-hash untuk keamanan</em>
+            </div>
+        </div>
+
+        <div class="setup-section">
+            <h4>⚙️ Google Maps API</h4>
+            <p>Untuk menggunakan fitur peta di About.html:</p>
+            <ol>
+                <li>Buka <a href="https://console.cloud.google.com" target="_blank">Google Cloud Console</a></li>
+                <li>Buat project baru</li>
+                <li>Enable Google Maps JavaScript API</li>
+                <li>Create API key</li>
+                <li>Masukkan key di About.html line (~30):</li>
+                <div class="code-block">
+&lt;script src="https://maps.googleapis.com/maps/api/js?key=YOUR_API_KEY"&gt;&lt;/script&gt;
+                </div>
+            </ol>
+        </div>
+
+        <div id="setupStatus"></div>
+
+        <button class="btn-setup" onclick="testSetup()">✅ Cek Setup Status</button>
+    </div>
+
+    <script>
+        async function testSetup() {
+            const status = document.getElementById('setupStatus');
+            status.innerHTML = '<div class="status">Checking setup...</div>';
+            
+            const checks = {
+                'Database Connection': 'backend/config/database.php',
+                'News API': 'backend/routes/news.php',
+                'Customer Growth API': 'backend/routes/customer_growth.php',
+                'BTS Coverage API': 'backend/routes/bts_coverage.php',
+                'Admin Panel': 'admin/index.html',
+                'News Page': 'News.php',
+                'Detail Page': 'news_detail.php'
+            };
+
+            let results = '';
+            let allOk = true;
+
+            for (const [name, path] of Object.entries(checks)) {
+                try {
+                    const response = await fetch(path, { method: 'HEAD' });
+                    if (response.ok || response.status === 405) {
+                        results += `<div class="status success">✅ ${name}: OK</div>`;
+                    } else {
+                        results += `<div class="status error">❌ ${name}: Not found</div>`;
+                        allOk = false;
+                    }
+                } catch (err) {
+                    results += `<div class="status error">❌ ${name}: Error - ${err.message}</div>`;
+                    allOk = false;
+                }
+            }
+
+            if (allOk) {
+                results += '<div class="status success" style="margin-top: 20px;"><h5>✨ Setup berhasil!</h5><p>Semua komponen siap digunakan.</p></div>';
+            } else {
+                results += '<div class="status error" style="margin-top: 20px;"><h5>⚠️ Ada masalah</h5><p>Silakan periksa setup Anda.</p></div>';
+            }
+
+            status.innerHTML = results;
+        }
+    </script>
+</body>
+</html>
