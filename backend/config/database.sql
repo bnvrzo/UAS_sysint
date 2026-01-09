@@ -40,8 +40,10 @@ CREATE TABLE IF NOT EXISTS customer_growth (
     id INT PRIMARY KEY AUTO_INCREMENT,
     year INT NOT NULL,
     total_customers INT NOT NULL,
-    growth_percentage DECIMAL(5, 2),
+    growth_percentage DECIMAL(10, 2),
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+    xml_backup_path VARCHAR(255),
     UNIQUE KEY unique_year (year)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
 
@@ -75,11 +77,11 @@ CREATE TABLE IF NOT EXISTS admin_logs (
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
 
 -- Insert Sample Admin User
-INSERT INTO users (username, email, password, role) VALUES 
+INSERT IGNORE INTO users (username, email, password, role) VALUES 
 ('admin', 'admin@towerindo.com', '$2y$10$N9qo8uLOickgx2ZMRZoHy.Qj2aTzRWjHsYxhzOjBP.r3XvGn1wfJy', 'admin');
 
 -- Insert Sample Customer Growth Data
-INSERT INTO customer_growth (year, total_customers, growth_percentage) VALUES
+INSERT IGNORE INTO customer_growth (year, total_customers, growth_percentage) VALUES
 (2020, 5000, 0),
 (2021, 7500, 50),
 (2022, 12000, 60),
@@ -88,7 +90,7 @@ INSERT INTO customer_growth (year, total_customers, growth_percentage) VALUES
 (2025, 35000, 32.08);
 
 -- Insert Sample BTS Coverage Data (Major Indonesian Islands)
-INSERT INTO bts_coverage (island_name, bts_count, population, coverage_percentage, latitude, longitude) VALUES
+INSERT IGNORE INTO bts_coverage (island_name, bts_count, population, coverage_percentage, latitude, longitude) VALUES
 ('Jawa', 3500, 150000000, 98.5, -6.9175, 107.6928),
 ('Sumatra', 1200, 56000000, 85.3, 0.5467, 101.4477),
 ('Kalimantan', 850, 16500000, 72.4, -0.1804, 111.4605),
