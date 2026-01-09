@@ -147,11 +147,11 @@
 		<div class="container">
 			<div class="navbar-brand">
 				<span class="navbar-logo">
-					<a href="Index.html">
+					<a href="index.html">
 						<img src="assets/images/download-96x143.jpeg" alt="Mobirise Website Builder" style="height: 4.1rem;">
 					</a>
 				</span>
-				<span class="navbar-caption-wrap"><a class="navbar-caption text-black text-primary display-4" href="Index.html">Towerindo</a></span>
+				<span class="navbar-caption-wrap"><a class="navbar-caption text-black text-primary display-4" href="index.html">Towerindo</a></span>
 			</div>
 			<button class="navbar-toggler" type="button" data-toggle="collapse" data-bs-toggle="collapse" data-target="#navbarSupportedContent" data-bs-target="#navbarSupportedContent" aria-controls="navbarNavAltMarkup" aria-expanded="false" aria-label="Toggle navigation">
 				<div class="hamburger">
@@ -163,12 +163,12 @@
 			</button>
 			<div class="collapse navbar-collapse" id="navbarSupportedContent">
 				<ul class="navbar-nav nav-dropdown nav-right" data-app-modern-menu="true"><li class="nav-item">
-						<a class="nav-link link text-black text-primary display-4" href="About.html" aria-expanded="false">About Us</a>
+						<a class="nav-link link text-black text-primary display-4" href="about.html" aria-expanded="false">About Us</a>
 					</li><li class="nav-item">
 						<a class="nav-link link text-black text-primary display-4" href="solution.html">Our Solution</a>
 					</li>
 					
-					<li class="nav-item"><a class="nav-link link text-black text-primary display-4" href="News.php">News</a></li></ul>
+					<li class="nav-item"><a class="nav-link link text-black text-primary display-4" href="news.php">News</a></li></ul>
 				
 				
 			</div>
@@ -233,7 +233,7 @@ function loadNews(page = 1) {
           html += '<ul class="pagination justify-content-center">';
           for (let i = 1; i <= data.pagination.pages; i++) {
             const active = (i === parseInt(page)) ? 'active' : '';
-            html += `<li class="page-item ${active}"><a class="page-link" href="News.php?page=${i}">${i}</a></li>`;
+            html += `<li class="page-item ${active}"><a class="page-link" href="news.php?page=${i}">${i}</a></li>`;
           }
           html += '</ul></nav>';
         }
